@@ -1,184 +1,217 @@
 // src/theme.js
 import { createTheme, alpha } from '@mui/material/styles';
 
-// Premium Color Palette
-export const brand = {
-  50: '#f0f4ff',
-  100: '#dbeafe',
-  200: '#bfdbfe',
-  300: '#93c5fd',
-  400: '#60a5fa',
-  500: '#3b82f6', // Primary Main
-  600: '#2563eb',
-  700: '#1d4ed8',
-  800: '#1e40af',
-  900: '#1e3a8a',
-};
+const defaultTheme = createTheme();
 
-export const secondary = {
-  50: '#fdf4ff',
-  100: '#fae8ff',
-  200: '#f5d0fe',
-  300: '#f0abfc',
-  400: '#e879f9',
-  500: '#d946ef',
-  600: '#c026d3',
-  700: '#a21caf',
-  800: '#86198f',
-  900: '#701a75',
+const customShadows = [...defaultTheme.shadows];
+
+export const brand = {
+  50: 'hsl(210, 100%, 95%)',
+  100: 'hsl(210, 100%, 92%)',
+  200: 'hsl(210, 100%, 80%)',
+  300: 'hsl(210, 100%, 65%)',
+  400: 'hsl(210, 98%, 48%)',
+  500: 'hsl(210, 98%, 42%)',
+  600: 'hsl(210, 98%, 55%)',
+  700: 'hsl(210, 100%, 35%)',
+  800: 'hsl(210, 100%, 16%)',
+  900: 'hsl(210, 100%, 21%)',
 };
 
 export const gray = {
-  50: '#f8fafc',
-  100: '#f1f5f9',
-  200: '#e2e8f0',
-  300: '#cbd5e1',
-  400: '#94a3b8',
-  500: '#64748b',
-  600: '#475569',
-  700: '#334155',
-  800: '#1e293b',
-  900: '#0f172a',
+  50: 'hsl(220, 35%, 97%)',
+  100: 'hsl(220, 30%, 94%)',
+  200: 'hsl(220, 20%, 88%)',
+  300: 'hsl(220, 20%, 80%)',
+  400: 'hsl(220, 20%, 65%)',
+  500: 'hsl(220, 20%, 42%)',
+  600: 'hsl(220, 20%, 35%)',
+  700: 'hsl(220, 20%, 25%)',
+  800: 'hsl(220, 30%, 6%)',
+  900: 'hsl(220, 35%, 3%)',
 };
 
-// Custom Shadows
-const createCustomShadows = (mode) => {
-  const color = mode === 'dark' ? '#000000' : '#94a3b8';
-  return [
-    'none',
-    `0px 2px 4px ${alpha(color, 0.1)}`,
-    `0px 4px 8px ${alpha(color, 0.1)}`,
-    `0px 8px 16px ${alpha(color, 0.1)}`,
-    `0px 16px 32px ${alpha(color, 0.1)}`,
-    ...Array(20).fill('none'), // Fill rest to match MUI expectation if needed, or just rely on defaults for higher elevations
-  ];
+export const green = {
+  50: 'hsl(120, 80%, 98%)',
+  100: 'hsl(120, 75%, 94%)',
+  200: 'hsl(120, 75%, 87%)',
+  300: 'hsl(120, 61%, 77%)',
+  400: 'hsl(120, 44%, 53%)',
+  500: 'hsl(120, 59%, 30%)',
+  600: 'hsl(120, 70%, 25%)',
+  700: 'hsl(120, 75%, 16%)',
+  800: 'hsl(120, 84%, 10%)',
+  900: 'hsl(120, 87%, 6%)',
+};
+
+export const orange = {
+  50: 'hsl(45, 100%, 97%)',
+  100: 'hsl(45, 92%, 90%)',
+  200: 'hsl(45, 94%, 80%)',
+  300: 'hsl(45, 90%, 65%)',
+  400: 'hsl(45, 90%, 40%)',
+  500: 'hsl(45, 90%, 35%)',
+  600: 'hsl(45, 91%, 25%)',
+  700: 'hsl(45, 94%, 20%)',
+  800: 'hsl(45, 95%, 16%)',
+  900: 'hsl(45, 93%, 12%)',
+};
+
+export const red = {
+  50: 'hsl(0, 100%, 97%)',
+  100: 'hsl(0, 92%, 90%)',
+  200: 'hsl(0, 94%, 80%)',
+  300: 'hsl(0, 90%, 65%)',
+  400: 'hsl(0, 90%, 40%)',
+  500: 'hsl(0, 90%, 30%)',
+  600: 'hsl(0, 91%, 25%)',
+  700: 'hsl(0, 94%, 18%)',
+  800: 'hsl(0, 95%, 12%)',
+  900: 'hsl(0, 93%, 6%)',
 };
 
 export const getDesignTokens = (mode) => {
-  const isDark = mode === 'dark';
+  customShadows[1] =
+    mode === 'dark'
+      ? 'hsla(220, 30%, 5%, 0.7) 0px 4px 16px 0px, hsla(220, 25%, 10%, 0.8) 0px 8px 16px -5px'
+      : 'hsla(220, 30%, 5%, 0.07) 0px 4px 16px 0px, hsla(220, 25%, 10%, 0.07) 0px 8px 16px -5px';
 
   return {
     palette: {
       mode,
       primary: {
-        light: brand[300],
-        main: brand[600],
-        dark: brand[800],
-        contrastText: '#ffffff',
+        light: brand[200],
+        main: brand[400],
+        dark: brand[700],
+        contrastText: brand[50],
+        ...(mode === 'dark' && {
+          contrastText: brand[50],
+          light: brand[300],
+          main: brand[400],
+          dark: brand[700],
+        }),
       },
-      secondary: {
-        light: secondary[300],
-        main: secondary[600],
-        dark: secondary[800],
-        contrastText: '#ffffff',
+      info: {
+        light: brand[100],
+        main: brand[300],
+        dark: brand[600],
+        contrastText: gray[50],
+        ...(mode === 'dark' && {
+          contrastText: brand[50],
+          light: brand[500],
+          main: brand[700],
+          dark: brand[900],
+        }),
       },
+      warning: {
+        light: orange[300],
+        main: orange[400],
+        dark: orange[800],
+        ...(mode === 'dark' && {
+          light: orange[400],
+          main: orange[500],
+          dark: orange[700],
+        }),
+      },
+      error: {
+        light: red[300],
+        main: red[400],
+        dark: red[800],
+        ...(mode === 'dark' && {
+          light: red[400],
+          main: red[500],
+          dark: red[700],
+        }),
+      },
+      success: {
+        light: green[300],
+        main: green[400],
+        dark: green[800],
+        ...(mode === 'dark' && {
+          light: green[400],
+          main: green[500],
+          dark: green[700],
+        }),
+      },
+      grey: {
+        ...gray,
+      },
+      divider: mode === 'dark' ? alpha(gray[700], 0.6) : alpha(gray[300], 0.4),
       background: {
-        default: isDark ? '#0f172a' : '#f8fafc',
-        paper: isDark ? '#1e293b' : '#ffffff',
+        default: 'hsl(0, 0%, 99%)',
+        paper: 'hsl(220, 35%, 97%)',
+        ...(mode === 'dark' && { default: gray[900], paper: 'hsl(220, 30%, 7%)' }),
       },
       text: {
-        primary: isDark ? '#f1f5f9' : '#1e293b',
-        secondary: isDark ? '#94a3b8' : '#64748b',
+        primary: gray[800],
+        secondary: gray[600],
+        warning: orange[400],
+        ...(mode === 'dark' && {
+          primary: 'hsl(0, 0%, 100%)',
+          secondary: gray[400],
+        }),
       },
-      divider: isDark ? alpha(gray[700], 0.5) : alpha(gray[200], 0.8),
+      action: {
+        hover: alpha(gray[200], 0.2),
+        selected: `${alpha(gray[200], 0.3)}`,
+        ...(mode === 'dark' && {
+          hover: alpha(gray[600], 0.2),
+          selected: alpha(gray[600], 0.3),
+        }),
+      },
     },
     typography: {
-      fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
-      h1: { fontWeight: 700, fontSize: '2.5rem' },
-      h2: { fontWeight: 700, fontSize: '2rem' },
-      h3: { fontWeight: 600, fontSize: '1.75rem' },
-      h4: { fontWeight: 600, fontSize: '1.5rem' },
-      h5: { fontWeight: 600, fontSize: '1.25rem' },
-      h6: { fontWeight: 600, fontSize: '1rem' },
-      button: { textTransform: 'none', fontWeight: 600 },
+      fontFamily: 'Inter, sans-serif',
+      h1: {
+        fontSize: defaultTheme.typography.pxToRem(48),
+        fontWeight: 600,
+        lineHeight: 1.2,
+        letterSpacing: -0.5,
+      },
+      h2: {
+        fontSize: defaultTheme.typography.pxToRem(36),
+        fontWeight: 600,
+        lineHeight: 1.2,
+      },
+      h3: {
+        fontSize: defaultTheme.typography.pxToRem(30),
+        lineHeight: 1.2,
+      },
+      h4: {
+        fontSize: defaultTheme.typography.pxToRem(24),
+        fontWeight: 600,
+        lineHeight: 1.5,
+      },
+      h5: {
+        fontSize: defaultTheme.typography.pxToRem(20),
+        fontWeight: 600,
+      },
+      h6: {
+        fontSize: defaultTheme.typography.pxToRem(18),
+        fontWeight: 600,
+      },
+      subtitle1: {
+        fontSize: defaultTheme.typography.pxToRem(18),
+      },
+      subtitle2: {
+        fontSize: defaultTheme.typography.pxToRem(14),
+        fontWeight: 500,
+      },
+      body1: {
+        fontSize: defaultTheme.typography.pxToRem(14),
+      },
+      body2: {
+        fontSize: defaultTheme.typography.pxToRem(14),
+        fontWeight: 400,
+      },
+      caption: {
+        fontSize: defaultTheme.typography.pxToRem(12),
+        fontWeight: 400,
+      },
     },
     shape: {
-      borderRadius: 12,
+      borderRadius: 8,
     },
-    components: {
-      MuiButton: {
-        styleOverrides: {
-          root: {
-            borderRadius: '10px',
-            padding: '8px 16px',
-            boxShadow: 'none',
-            '&:hover': {
-              boxShadow: `0 4px 12px ${alpha(brand[500], 0.2)}`,
-              transform: 'translateY(-1px)',
-            },
-            transition: 'all 0.2s ease-in-out',
-          },
-          containedPrimary: {
-            background: `linear-gradient(135deg, ${brand[600]} 0%, ${brand[700]} 100%)`,
-          },
-          containedSecondary: {
-            background: `linear-gradient(135deg, ${secondary[600]} 0%, ${secondary[700]} 100%)`,
-          },
-        },
-      },
-      MuiCard: {
-        styleOverrides: {
-          root: {
-            borderRadius: '16px',
-            boxShadow: isDark
-              ? '0 4px 20px rgba(0,0,0,0.4)'
-              : '0 4px 20px rgba(0,0,0,0.05)',
-            backgroundImage: 'none',
-            transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
-            '&:hover': {
-              transform: 'translateY(-4px)',
-              boxShadow: isDark
-                ? '0 12px 30px rgba(0,0,0,0.5)'
-                : '0 12px 30px rgba(0,0,0,0.1)',
-            },
-          },
-        },
-      },
-      MuiPaper: {
-        styleOverrides: {
-          root: {
-            backgroundImage: 'none',
-          },
-        },
-      },
-      MuiAppBar: {
-        styleOverrides: {
-          root: {
-            background: isDark ? alpha('#1e293b', 0.8) : alpha('#ffffff', 0.8),
-            backdropFilter: 'blur(12px)',
-            boxShadow: 'none',
-            borderBottom: `1px solid ${isDark ? alpha(gray[700], 0.5) : alpha(gray[200], 0.8)}`,
-            color: isDark ? '#f1f5f9' : '#1e293b',
-          },
-        },
-      },
-      MuiDrawer: {
-        styleOverrides: {
-          paper: {
-            borderRight: 'none',
-            background: isDark ? '#1e293b' : '#ffffff',
-          },
-        },
-      },
-      MuiTextField: {
-        styleOverrides: {
-          root: {
-            '& .MuiOutlinedInput-root': {
-              borderRadius: '10px',
-              '& fieldset': {
-                borderColor: isDark ? gray[700] : gray[300],
-              },
-              '&:hover fieldset': {
-                borderColor: brand[400],
-              },
-              '&.Mui-focused fieldset': {
-                borderColor: brand[500],
-                borderWidth: '2px',
-              },
-            },
-          },
-        },
-      },
-    },
+    shadows: customShadows,
   };
 };
