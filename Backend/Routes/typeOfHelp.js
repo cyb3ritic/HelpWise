@@ -9,13 +9,9 @@ const { check, validationResult } = require('express-validator');
 // @desc    Get all types of help
 // @access  Public
 router.get('/', async (req, res) => {
-  console.log("Fetching types of help");
   try {
     const types = await TypeOfHelp.find().sort({ name: 1 });
     res.json(types);
-    // const types = await TypeOfHelp.find();
-    // res.json(types);
-    
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');
