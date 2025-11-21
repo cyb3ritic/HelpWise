@@ -11,47 +11,119 @@ import {
   Paper,
   InputBase,
   Divider,
+  Tooltip,
+  Menu,
+  MenuItem,
+  ListItemIcon,
 } from '@mui/material';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
-import io from 'socket.io-client';
+import { SocketContext } from '../context/SocketContext';
 import SendIcon from '@mui/icons-material/Send';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { styled } from '@mui/system';
 import moment from 'moment';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
-// Initialize socket outside of the component to prevent multiple instances
-let socket;
+// --- Styled Components ---
+
+const ChatContainer = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  flexDirection: 'column',
+  height: '85vh',
+  backgroundColor: '#e5ddd5', // WhatsApp-like background color
+  backgroundImage: 'url("https://www.transparenttextures.com/patterns/subtle-white-feathers.png")', // Subtle pattern
+  borderRadius: '12px',
+  overflow: 'hidden',
+  boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+}));
+
+const Header = styled(Paper)(({ theme }) => ({
+  padding: '10px 16px',
+  display: 'flex',
+  alignItems: 'center',
+  backgroundColor: '#075e54', // WhatsApp teal
+  color: '#fff',
+  borderRadius: 0,
+}));
+
+const MessagesArea = styled(Box)({
+  flexGrow: 1,
+  overflowY: 'auto',
+  padding: '20px',
+  display: 'flex',
+  flexDirection: 'column',
+});
 
 const MessageContainer = styled(Box)(({ isSender }) => ({
   display: 'flex',
   justifyContent: isSender ? 'flex-end' : 'flex-start',
-  marginBottom: '12px',
+  marginBottom: '8px',
+  width: '100%', // Ensure container takes full width
 }));
 
 const MessageBubble = styled(Box)(({ theme, isSender }) => ({
-  display: 'inline-block',
-  padding: '10px 14px',
-  borderRadius: '18px',
-  backgroundColor: isSender ? theme.palette.primary.main : theme.palette.grey[200],
-  color: isSender ? '#fff' : '#000',
-  cursor: 'pointer',
-  maxWidth: '100%', // Limit the width for better readability
-  boxShadow: isSender
-    ? '0px 2px 4px rgba(0, 0, 0, 0.2)'
-    : '0px 2px 4px rgba(0, 0, 0, 0.1)',
+  maxWidth: '70%',
+  padding: '8px 12px',
+  borderRadius: '8px',
+  backgroundColor: isSender ? '#dcf8c6' : '#fff', // WhatsApp sender/receiver colors
+  color: '#303030',
+  boxShadow: '0 1px 1px rgba(0,0,0,0.1)',
+  position: 'relative',
+  fontSize: '0.95rem',
+  lineHeight: 1.4,
+  wordBreak: 'break-word', // Fix for long words
+  '&::after': {
+    content: '""',
+    position: 'absolute',
+    top: 0,
+    [isSender ? 'right' : 'left']: '-8px',
+    width: 0,
+    height: 0,
+    border: '8px solid transparent',
+    borderTopColor: isSender ? '#dcf8c6' : '#fff',
+    [isSender ? 'borderLeft' : 'borderRight']: 'none',
+    marginTop: '8px',
+  },
 }));
 
-const MessageText = styled(Typography)({
-  wordWrap: 'break-word',
-  whiteSpace: 'pre-wrap',
+const DateSeparator = styled(Box)({
+  display: 'flex',
+  justifyContent: 'center',
+  margin: '16px 0',
+  '& span': {
+    backgroundColor: '#e1f3fb',
+    padding: '4px 12px',
+    borderRadius: '12px',
+    fontSize: '0.75rem',
+    color: '#555',
+    boxShadow: '0 1px 1px rgba(0,0,0,0.1)',
+  },
 });
+
+const InputArea = styled(Box)(({ theme }) => ({
+  padding: '10px',
+  backgroundColor: '#f0f0f0',
+  display: 'flex',
+  alignItems: 'center',
+}));
+
+const StyledInput = styled(InputBase)(({ theme }) => ({
+  flex: 1,
+  backgroundColor: '#fff',
+  borderRadius: '20px',
+  padding: '8px 16px',
+  marginRight: '10px',
+  fontSize: '1rem',
+}));
 
 function Conversation() {
   const navigate = useNavigate();
   const { conversationId } = useParams();
   const { user, loading: authLoading } = useContext(AuthContext);
+  const socket = useContext(SocketContext);
 
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -59,235 +131,226 @@ function Conversation() {
   const [error, setError] = useState('');
   const [newMessage, setNewMessage] = useState('');
   const messagesEndRef = useRef(null);
-  const [showTimeMessageIds, setShowTimeMessageIds] = useState([]);
 
+  // Menu State
+  const [anchorEl, setAnchorEl] = useState(null);
+  const openMenu = Boolean(anchorEl);
+
+  // Fetch data
   useEffect(() => {
-    const fetchConversation = async () => {
+    const fetchData = async () => {
       try {
-        // Fetch conversation details
-        const convRes = await axios.get(`/api/conversations/${conversationId}`, {
-          withCredentials: true,
-        });
+        const [convRes, msgsRes] = await Promise.all([
+          axios.get(`/api/conversations/${conversationId}`, { withCredentials: true }),
+          axios.get(`/api/conversations/${conversationId}/messages`, { withCredentials: true })
+        ]);
         setConversation(convRes.data);
-
-        // Fetch existing messages
-        const msgsRes = await axios.get(
-          `/api/conversations/${conversationId}/messages`,
-          { withCredentials: true }
-        );
         setMessages(msgsRes.data);
         setLoading(false);
       } catch (err) {
-        console.error('Error fetching conversation:', err);
-
-        if (err.response) {
-          setError(err.response.data.msg || 'Failed to load conversation.');
-        } else if (err.request) {
-          setError('No response from server. Please try again later.');
-        } else {
-          setError('An unexpected error occurred.');
-        }
-
+        console.error('Error fetching data:', err);
+        setError('Failed to load conversation.');
         setLoading(false);
       }
     };
 
-    if (user) {
-      fetchConversation();
-    }
+    if (user) fetchData();
   }, [user, conversationId]);
 
+  // Socket Logic
   useEffect(() => {
-    if (conversationId && user) {
-      // Initialize Socket.IO only once
-      if (!socket) {
-        socket = io('http://localhost:5000', {
-          withCredentials: true, // Ensure cookies are sent
-        });
-
-        // Handle connection errors
-        socket.on('connect_error', (err) => {
-          console.error('Socket connection error:', err.message);
-        });
-
-        // Listen for incoming messages
-        socket.on('chatMessage', (message) => {
-          // Ensure the message is part of this conversation
-          if (message.conversationId === conversationId) {
-            setMessages((prevMessages) => [...prevMessages, message]);
-          }
-        });
-
-        // Listen for error messages from the server
-        socket.on('errorMessage', (data) => {
-          alert(data.msg);
-        });
-      }
-
-      // Join the conversation room
+    if (socket && conversationId) {
       socket.emit('joinConversation', conversationId);
 
-      // Clean up on unmount
-      return () => {
-        if (socket) {
-          socket.off('chatMessage');
-          socket.off('errorMessage');
-          socket.emit('leaveConversation', conversationId);
+      const handleChatMessage = (message) => {
+        if (message.conversationId === conversationId) {
+          setMessages((prev) => [...prev, message]);
         }
       };
-    }
-  }, [conversationId, user]);
 
-  useEffect(() => {
-    // Scroll to the latest message
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages]);
-
-  const handleSendMessage = () => {
-    if (newMessage.trim() !== '') {
-      const messageData = {
-        conversationId,
-        message: newMessage.trim(),
+      const handleChatCleared = (data) => {
+        if (data.conversationId === conversationId) {
+          setMessages([]);
+        }
       };
 
-      // Emit the message to the server
-      socket.emit('chatMessage', messageData);
+      socket.on('chatMessage', handleChatMessage);
+      socket.on('chatCleared', handleChatCleared);
 
-      // Clear the input field
+      return () => {
+        socket.off('chatMessage', handleChatMessage);
+        socket.off('chatCleared', handleChatCleared);
+      };
+    }
+  }, [socket, conversationId]);
+
+  // Auto-scroll
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim()) return;
+    try {
+      await axios.post(
+        `/api/conversations/${conversationId}/messages`,
+        { message: newMessage.trim() },
+        { withCredentials: true }
+      );
       setNewMessage('');
+    } catch (err) {
+      console.error('Error sending message:', err);
     }
   };
 
-  const handleToggleTimestamp = (messageId) => {
-    setShowTimeMessageIds((prev) =>
-      prev.includes(messageId) ? prev.filter((id) => id !== messageId) : [...prev, messageId]
-    );
+  const handleClearChat = async () => {
+    try {
+      await axios.delete(`/api/conversations/${conversationId}/messages`, { withCredentials: true });
+      // State update handled by socket event 'chatCleared'
+      handleCloseMenu();
+    } catch (err) {
+      console.error('Error clearing chat:', err);
+      alert('Failed to clear chat.');
+    }
   };
+
+  const handleMenuClick = (event) => setAnchorEl(event.currentTarget);
+  const handleCloseMenu = () => setAnchorEl(null);
+
+  // Helper to group messages by date
+  const groupMessagesByDate = (msgs) => {
+    const groups = {};
+    msgs.forEach((msg) => {
+      const date = moment(msg.createdAt).format('YYYY-MM-DD');
+      if (!groups[date]) groups[date] = [];
+      groups[date].push(msg);
+    });
+    return groups;
+  };
+
+  const messageGroups = groupMessagesByDate(messages);
 
   if (authLoading || loading) {
     return (
-      <Container maxWidth="md" sx={{ mt: 8, display: 'flex', justifyContent: 'center' }}>
+      <Container sx={{ mt: 8, display: 'flex', justifyContent: 'center' }}>
         <CircularProgress />
       </Container>
     );
   }
 
-  if (error) {
-    return (
-      <Container maxWidth="md" sx={{ mt: 8 }}>
-        <Typography variant="h6" color="error">
-          {error}
-        </Typography>
-      </Container>
-    );
-  }
+  if (error) return <Container sx={{ mt: 8 }}><Typography color="error">{error}</Typography></Container>;
+  if (!conversation) return null;
 
-  if (!conversation) {
-    return (
-      <Container maxWidth="md" sx={{ mt: 8 }}>
-        <Typography variant="h6">Conversation not found.</Typography>
-      </Container>
-    );
-  }
-
-  // Determine the other participant
   const otherParticipant = conversation.participants.find((p) => p._id !== user._id);
 
   return (
-    <Container maxWidth="md" sx={{ mt: 2, mb: 4 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-        <IconButton onClick={() => navigate('/conversations')} sx={{ mr: 1 }}>
-          <ArrowBackIcon />
-        </IconButton>
-        <Avatar sx={{ mr: 1 }}>
-          {otherParticipant.firstName.charAt(0)}
-          {otherParticipant.lastName.charAt(0)}
-        </Avatar>
-        <Typography variant="h6">
-          {otherParticipant.firstName} {otherParticipant.lastName}
-        </Typography>
-      </Box>
-      <Divider />
-      <Box
-        sx={{
-          p: 2,
-          height: '60vh',
-          overflowY: 'auto',
-          backgroundColor: '#f5f5f5',
-          borderRadius: '8px',
-          mt: 2,
-        }}
-      >
-        {messages.map((msg) => {
-          const isSender = msg.sender._id === user._id;
-          const messageTime = moment(msg.createdAt).format('h:mm A');
+    <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
+      <ChatContainer>
+        {/* Header */}
+        <Header elevation={2}>
+          <IconButton onClick={() => navigate('/conversations')} sx={{ color: '#fff', mr: 1 }}>
+            <ArrowBackIcon />
+          </IconButton>
+          <Avatar src={otherParticipant?.avatar} sx={{ mr: 2 }}>
+            {otherParticipant?.firstName?.charAt(0)}
+          </Avatar>
+          <Box sx={{ flexGrow: 1 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+              {otherParticipant?.firstName} {otherParticipant?.lastName}
+            </Typography>
+            <Typography variant="caption" sx={{ opacity: 0.8 }}>
+              {otherParticipant?.email}
+            </Typography>
+          </Box>
+          <IconButton onClick={handleMenuClick} sx={{ color: '#fff' }}>
+            <MoreVertIcon />
+          </IconButton>
+          <Menu
+            anchorEl={anchorEl}
+            open={openMenu}
+            onClose={handleCloseMenu}
+          >
+            <MenuItem onClick={handleClearChat}>
+              <ListItemIcon>
+                <DeleteSweepIcon fontSize="small" />
+              </ListItemIcon>
+              Clear Chat
+            </MenuItem>
+          </Menu>
+        </Header>
 
-          return (
-            <MessageContainer key={msg._id} isSender={isSender}>
-              {!isSender && (
-                <Avatar sx={{ mr: 1 }}>
-                  {otherParticipant.firstName.charAt(0)}
-                  {otherParticipant.lastName.charAt(0)}
-                </Avatar>
-              )}
-              <Box
-                sx={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: isSender ? 'flex-end' : 'flex-start',
-                  maxWidth: '75%',
-                }}
-              >
-                <MessageBubble
-                  isSender={isSender}
-                  onClick={() => handleToggleTimestamp(msg._id)}
-                >
-                  <MessageText variant="body1">{msg.content}</MessageText>
-                </MessageBubble>
-                {showTimeMessageIds.includes(msg._id) && (
-                  <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
-                    {messageTime}
-                  </Typography>
-                )}
-              </Box>
-            </MessageContainer>
-          );
-        })}
-        <div ref={messagesEndRef} />
-      </Box>
-      <Paper
-        component="form"
-        sx={{
-          p: '2px 4px',
-          display: 'flex',
-          alignItems: 'center',
-          mt: 2,
-        }}
-        onSubmit={(e) => {
-          e.preventDefault();
-          handleSendMessage();
-        }}
-      >
-        <InputBase
-          sx={{ ml: 1, flex: 1 }}
-          placeholder="Type your message..."
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          multiline
-          maxRows={4}
-        />
-        <Divider sx={{ height: 28, m: 0.5 }} orientation="horizontal" />
-        <IconButton
-          color="primary"
-          sx={{ p: '10px' }}
-          onClick={handleSendMessage}
-          disabled={newMessage.trim() === ''}
-        >
-          <SendIcon />
-        </IconButton>
-      </Paper>
+        {/* Messages */}
+        <MessagesArea>
+          {Object.keys(messageGroups).map((date) => (
+            <React.Fragment key={date}>
+              <DateSeparator>
+                <span>{moment(date).calendar(null, {
+                  sameDay: '[Today]',
+                  lastDay: '[Yesterday]',
+                  lastWeek: 'dddd',
+                  sameElse: 'MMMM Do YYYY'
+                })}</span>
+              </DateSeparator>
+              {messageGroups[date].map((msg) => {
+                const isSender = msg.sender._id === user._id;
+                return (
+                  <MessageContainer key={msg._id} isSender={isSender}>
+                    <MessageBubble isSender={isSender}>
+                      <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
+                        {msg.content}
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          display: 'block',
+                          textAlign: 'right',
+                          mt: 0.5,
+                          fontSize: '0.7rem',
+                          color: 'text.secondary',
+                          opacity: 0.7
+                        }}
+                      >
+                        {moment(msg.createdAt).format('h:mm A')}
+                      </Typography>
+                    </MessageBubble>
+                  </MessageContainer>
+                );
+              })}
+            </React.Fragment>
+          ))}
+          <div ref={messagesEndRef} />
+        </MessagesArea>
+
+        {/* Input */}
+        <InputArea>
+          <StyledInput
+            placeholder="Type a message"
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            multiline
+            maxRows={4}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage();
+              }
+            }}
+          />
+          <IconButton
+            color="primary"
+            onClick={handleSendMessage}
+            disabled={!newMessage.trim()}
+            sx={{
+              bgcolor: '#075e54',
+              color: '#fff',
+              '&:hover': { bgcolor: '#128c7e' },
+              '&.Mui-disabled': { bgcolor: '#ccc', color: '#fff' }
+            }}
+          >
+            <SendIcon />
+          </IconButton>
+        </InputArea>
+      </ChatContainer>
     </Container>
   );
 }

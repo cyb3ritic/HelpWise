@@ -101,54 +101,8 @@ io.on('connection', (socket) => {
     console.log(`Socket ${socket.id} joined room ${conversationId}`);
   });
 
-  // Listen for chat messages
-  socket.on('chatMessage', async ({ conversationId, message }) => {
-    try {
-      // Validate conversationId
-      if (!mongoose.Types.ObjectId.isValid(conversationId)) {
-        socket.emit('errorMessage', { msg: 'Invalid Conversation ID.' });
-        return;
-      }
-
-      // Find the conversation to ensure the user is a participant
-      const Conversation = require('./models/Conversation'); // Ensure the model exists
-      const conversation = await Conversation.findById(conversationId);
-
-      if (!conversation) {
-        socket.emit('errorMessage', { msg: 'Conversation not found.' });
-        return;
-      }
-
-      if (!conversation.participants.includes(socket.user.id)) {
-        socket.emit('errorMessage', { msg: 'Access denied: Not a participant of this conversation.' });
-        return;
-      }
-
-      // Save the message to the database
-      const newMessage = new Message({
-        conversationId,
-        sender: socket.user.id,
-        content: message,
-      });
-
-      const savedMessage = await newMessage.save();
-
-      // Populate sender details
-      await savedMessage.populate('sender', 'firstName lastName email');
-
-      // Emit the saved message to all participants in the room
-      io.to(conversationId).emit('chatMessage', {
-        _id: savedMessage._id,
-        conversationId: savedMessage.conversationId,
-        sender: savedMessage.sender,
-        content: savedMessage.content,
-        createdAt: savedMessage.createdAt,
-      });
-    } catch (err) {
-      console.error('Error handling chatMessage:', err.message);
-      socket.emit('errorMessage', { msg: 'Failed to send message.' });
-    }
-  });
+  // Listen for chat messages - REMOVED, handled in routes/conversations.js
+  // socket.on('chatMessage', async ({ conversationId, message }) => { ... });
 
   // Handle disconnection
   socket.on('disconnect', () => {

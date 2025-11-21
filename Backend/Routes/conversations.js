@@ -152,6 +152,16 @@ router.post(
       await savedMessage.populate('sender', 'firstName lastName email');
 
       res.json(savedMessage);
+
+      // Emit the saved message to all participants in the room
+      req.io.to(conversationId).emit('chatMessage', {
+        _id: savedMessage._id,
+        conversationId: savedMessage.conversationId,
+        sender: savedMessage.sender, // Populated sender
+        content: savedMessage.content,
+        createdAt: savedMessage.createdAt,
+      });
+
     } catch (err) {
       console.error('Error sending message:', err.message);
       res.status(500).send('Server Error');
@@ -189,6 +199,43 @@ router.get('/:conversationId/messages', auth, async (req, res) => {
     res.json(messages);
   } catch (err) {
     console.error('Error fetching messages:', err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+/**
+ * @route   DELETE /api/conversations/:conversationId/messages
+ * @desc    Clear all messages in a conversation
+ * @access  Private
+ */
+router.delete('/:conversationId/messages', auth, async (req, res) => {
+  const { conversationId } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(conversationId)) {
+    return res.status(400).json({ msg: 'Invalid Conversation ID' });
+  }
+
+  try {
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) {
+      return res.status(404).json({ msg: 'Conversation not found' });
+    }
+
+    // Ensure the authenticated user is part of the conversation
+    if (!conversation.participants.includes(req.user.id)) {
+      return res.status(403).json({ msg: 'Access denied' });
+    }
+
+    // Delete all messages for this conversation
+    await Message.deleteMany({ conversationId });
+
+    res.json({ msg: 'Chat cleared successfully' });
+
+    // Emit event to clear chat for all participants
+    req.io.to(conversationId).emit('chatCleared', { conversationId });
+
+  } catch (err) {
+    console.error('Error clearing chat:', err.message);
     res.status(500).send('Server Error');
   }
 });

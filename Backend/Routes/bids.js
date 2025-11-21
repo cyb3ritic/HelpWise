@@ -8,6 +8,7 @@ const Request = require('../models/Request');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
 const Notification = require('../models/Notification');
+const Conversation = require('../models/Conversation');
 
 // @route   POST /api/bids
 // @desc    Place a new bid on a help request
@@ -300,7 +301,19 @@ router.post('/:bidId/accept', auth, async (req, res) => {
       });
     }
 
-    res.json({ msg: 'Bid accepted successfully.' });
+    // Create or Find Conversation between Requester and Bidder
+    let conversation = await Conversation.findOne({
+      participants: { $all: [req.user.id, bid.bidderId._id], $size: 2 },
+    });
+
+    if (!conversation) {
+      conversation = new Conversation({
+        participants: [req.user.id, bid.bidderId._id],
+      });
+      await conversation.save();
+    }
+
+    res.json({ msg: 'Bid accepted successfully.', conversationId: conversation._id });
   } catch (err) {
     console.error('Error accepting bid:', err.message);
     res.status(500).send('Server Error');

@@ -12,14 +12,26 @@ import {
   Avatar,
   ListItemText,
   Badge,
-  ListItemSecondaryAction,
-  IconButton,
+  Paper,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
-import { ChatBubbleOutline } from '@mui/icons-material';
+import { styled } from '@mui/system';
+
+const StyledListItem = styled(ListItemButton)(({ theme }) => ({
+  borderRadius: '12px',
+  marginBottom: '8px',
+  backgroundColor: '#fff',
+  boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+  transition: 'all 0.2s',
+  '&:hover': {
+    backgroundColor: '#f5f5f5',
+    transform: 'translateY(-1px)',
+    boxShadow: '0 4px 6px rgba(0,0,0,0.08)',
+  },
+}));
 
 function Conversations() {
   const navigate = useNavigate();
@@ -72,86 +84,74 @@ function Conversations() {
   }
 
   return (
-    <Container maxWidth="md" sx={{ mt: 8, mb: 4 }}>
-      <Typography variant="h4" gutterBottom>
-        Your Conversations
+    <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
+      <Typography variant="h5" gutterBottom sx={{ fontWeight: 600, color: '#333', mb: 3 }}>
+        Messages
       </Typography>
-      <Divider sx={{ mb: 2 }} />
+
       {conversations.length === 0 ? (
-        <Typography variant="body1">You have no conversations yet.</Typography>
+        <Paper sx={{ p: 4, textAlign: 'center', borderRadius: 2, bgcolor: '#f9f9f9' }}>
+          <Typography variant="body1" color="text.secondary">
+            No conversations yet. Start a chat by accepting a bid!
+          </Typography>
+        </Paper>
       ) : (
-        <List>
+        <List sx={{ width: '100%', bgcolor: 'background.paper' }}>
           {conversations.map((conversation) => {
-            // Determine the other participant
             const otherParticipant = conversation.participants.find((p) => p._id !== user._id);
 
-            // Get the last message time
-            const lastMessageTime = conversation.lastMessage?.createdAt
-              ? formatDistanceToNow(new Date(conversation.lastMessage.createdAt), { addSuffix: true })
-              : 'No messages yet';
+            // Handle last message logic safely
+            // Note: The backend might not be populating lastMessage correctly if it's not set up to do so.
+            // Assuming the backend returns a 'lastMessage' object or we need to fetch it.
+            // If 'lastMessage' is missing, we might show "Start chatting"
 
-            // Get the last message text
-            const lastMessage = conversation.lastMessage
-              ? conversation.lastMessage.text
-              : 'No messages yet';
-
-            // Determine if there are unread messages
-            const unreadCount = conversation.unreadMessages?.[user._id] || 0;
+            const lastMsgText = conversation.lastMessage?.content || "No messages yet";
+            const lastMsgTime = conversation.updatedAt
+              ? formatDistanceToNow(new Date(conversation.updatedAt), { addSuffix: true })
+              : '';
 
             return (
-              <ListItemButton
+              <StyledListItem
                 key={conversation._id}
                 onClick={() => navigate(`/conversations/${conversation._id}`)}
-                sx={{
-                  borderRadius: 2,
-                  mb: 1,
-                  '&:hover': {
-                    backgroundColor: 'action.hover',
-                  },
-                }}
+                alignItems="flex-start"
               >
                 <ListItemAvatar>
-                  <Badge
-                    color="primary"
-                    overlap="circular"
-                    badgeContent=" "
-                    variant={unreadCount > 0 ? 'dot' : undefined}
+                  <Avatar
+                    src={otherParticipant?.avatar}
+                    sx={{ width: 50, height: 50, mr: 1, bgcolor: '#075e54' }}
                   >
-                    <Avatar>
-                      {otherParticipant.firstName.charAt(0)}
-                      {otherParticipant.lastName.charAt(0)}
-                    </Avatar>
-                  </Badge>
+                    {otherParticipant?.firstName?.charAt(0)}
+                  </Avatar>
                 </ListItemAvatar>
                 <ListItemText
                   primary={
-                    <Typography variant="subtitle1" sx={{ fontWeight: unreadCount > 0 ? 'bold' : 'normal' }}>
-                      {otherParticipant.firstName} {otherParticipant.lastName}
-                    </Typography>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                        {otherParticipant?.firstName} {otherParticipant?.lastName}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap', ml: 1 }}>
+                        {lastMsgTime}
+                      </Typography>
+                    </Box>
                   }
                   secondary={
-                    <>
-                      <Typography
-                        variant="body2"
-                        color="textSecondary"
-                        noWrap
-                        sx={{ fontWeight: unreadCount > 0 ? 'bold' : 'normal' }}
-                      >
-                        {lastMessage}
-                      </Typography>
-                      <Typography variant="caption" color="textSecondary">
-                        {lastMessageTime}
-                      </Typography>
-                    </>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{
+                        display: '-webkit-box',
+                        overflow: 'hidden',
+                        WebkitBoxOrient: 'vertical',
+                        WebkitLineClamp: 1,
+                        mt: 0.5
+                      }}
+                    >
+                      {lastMsgText}
+                    </Typography>
                   }
-                  sx={{ pr: 2 }}
                 />
-                <ListItemSecondaryAction>
-                  <IconButton edge="end" disabled>
-                    <ChatBubbleOutline />
-                  </IconButton>
-                </ListItemSecondaryAction>
-              </ListItemButton>
+              </StyledListItem>
             );
           })}
         </List>
