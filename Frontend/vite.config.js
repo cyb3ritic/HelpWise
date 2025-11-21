@@ -13,7 +13,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:9001', // Backend server URL
+        target: 'http://127.0.0.1:9001', // Backend server URL
         changeOrigin: true,
         secure: false, // Set to true if backend uses HTTPS
         // Optional: Rewrite the path if backend API doesn't use '/api' prefix
