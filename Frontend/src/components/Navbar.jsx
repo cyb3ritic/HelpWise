@@ -1,15 +1,15 @@
 // src/components/Navbar.jsx
 import React, { useContext, useEffect, useState } from 'react';
-import { 
-  AppBar, 
-  Toolbar, 
-  Typography, 
-  IconButton, 
-  Button, 
-  Badge, 
-  Menu, 
-  MenuItem, 
-  ListItemText 
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  IconButton,
+  Button,
+  Badge,
+  Menu,
+  MenuItem,
+  ListItemText
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import MenuOpenIcon from '@mui/icons-material/MenuOpen';
@@ -84,8 +84,9 @@ function Navbar({ handleDrawerToggle, toggleDrawerShrink, toggleTheme, drawerWid
   };
 
   return (
-    <AppBar 
-      position="fixed" 
+    <AppBar
+      position="fixed"
+      elevation={0}
       sx={{
         width: { sm: `calc(100% - ${drawerWidth}px)` },
         ml: { sm: `${drawerWidth}px` },
@@ -93,7 +94,10 @@ function Navbar({ handleDrawerToggle, toggleDrawerShrink, toggleTheme, drawerWid
           easing: theme.transitions.easing.sharp,
           duration: theme.transitions.duration.leavingScreen,
         }),
-        zIndex: theme.zIndex.drawer + 1, // Ensure Navbar is above Drawer
+        zIndex: theme.zIndex.drawer + 1,
+        background: theme.palette.mode === 'dark' ? 'rgba(15, 23, 42, 0.7)' : 'rgba(255, 255, 255, 0.7)',
+        backdropFilter: 'blur(20px)',
+        borderBottom: `1px solid ${theme.palette.divider}`,
       }}
     >
       <Toolbar>
@@ -107,12 +111,12 @@ function Navbar({ handleDrawerToggle, toggleDrawerShrink, toggleTheme, drawerWid
         >
           <MenuIcon />
         </IconButton>
-        
+
         {/* Application Title */}
-        <Typography 
-          variant="h6" 
-          component={Link} 
-          to="/" 
+        <Typography
+          variant="h6"
+          component={Link}
+          to="/"
           sx={{ flexGrow: 1, textDecoration: 'none', color: 'inherit' }}
         >
           HelpWise
@@ -148,9 +152,9 @@ function Navbar({ handleDrawerToggle, toggleDrawerShrink, toggleTheme, drawerWid
               ) : (
                 notifications.map(notif => (
                   <MenuItem key={notif._id} onClick={() => navigateToRelatedBid(notif)}>
-                    <ListItemText 
-                      primary={notif.message} 
-                      secondary={new Date(notif.createdAt).toLocaleString()} 
+                    <ListItemText
+                      primary={notif.message}
+                      secondary={new Date(notif.createdAt).toLocaleString()}
                       sx={{ opacity: notif.read ? 0.6 : 1 }}
                     />
                   </MenuItem>

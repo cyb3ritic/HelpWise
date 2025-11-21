@@ -7,18 +7,18 @@ function Footer() {
     <Box
       component="footer"
       sx={{
-        py: 3,
+        py: 4,
         px: 2,
         mt: 'auto',
-        backgroundColor: (theme) =>
-          theme.palette.mode === 'light'
-            ? theme.palette.grey[200]
-            : theme.palette.grey[800],
+        backgroundColor: (theme) => theme.palette.background.paper,
+        borderTop: (theme) => `1px solid ${theme.palette.divider}`,
       }}
     >
-      <Container maxWidth="sm">
-        <Typography variant="body1" align="center">
-          HelpWise © {new Date().getFullYear()}
+      <Container maxWidth="lg">
+        <Typography variant="body2" color="text.secondary" align="center">
+          {'© '}
+          {new Date().getFullYear()}
+          {' HelpWise. All rights reserved.'}
         </Typography>
       </Container>
     </Box>

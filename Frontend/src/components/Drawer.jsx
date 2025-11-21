@@ -50,8 +50,8 @@ function Drawer({ mobileOpen, handleDrawerToggle, drawerWidth }) {
 
   // Drawer Content
   const drawerContent = (
-    <div>
-      <List>
+    <div style={{ padding: '16px' }}>
+      <List sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
         {/* Online Help */}
         <Tooltip title="HelpWise" placement="right">
           <ListItem
@@ -59,12 +59,24 @@ function Drawer({ mobileOpen, handleDrawerToggle, drawerWidth }) {
             component={Link}
             to="/help"
             onClick={handleDrawerToggle}
+            sx={{
+              borderRadius: '12px',
+              mb: 1,
+              '&:hover': {
+                backgroundColor: theme.palette.action.hover,
+                transform: 'translateX(4px)',
+              },
+              transition: 'all 0.2s ease-in-out',
+            }}
           >
-            <ListItemIcon>
+            <ListItemIcon sx={{ minWidth: '40px', color: theme.palette.primary.main }}>
               <SupportAgentIcon />
             </ListItemIcon>
             {!isShrunk && (
-              <ListItemText primary="HelpWise" sx={{ color: textColor }} />
+              <ListItemText
+                primary="HelpWise"
+                primaryTypographyProps={{ fontWeight: 600, color: textColor }}
+              />
             )}
           </ListItem>
         </Tooltip>
@@ -76,12 +88,23 @@ function Drawer({ mobileOpen, handleDrawerToggle, drawerWidth }) {
             component={Link}
             to="/"
             onClick={handleDrawerToggle}
+            sx={{
+              borderRadius: '12px',
+              '&:hover': {
+                backgroundColor: theme.palette.action.hover,
+                transform: 'translateX(4px)',
+              },
+              transition: 'all 0.2s ease-in-out',
+            }}
           >
-            <ListItemIcon>
+            <ListItemIcon sx={{ minWidth: '40px', color: theme.palette.primary.main }}>
               <HomeIcon />
             </ListItemIcon>
             {!isShrunk && (
-              <ListItemText primary="Home" sx={{ color: textColor }} />
+              <ListItemText
+                primary="Home"
+                primaryTypographyProps={{ fontWeight: 500, color: textColor }}
+              />
             )}
           </ListItem>
         </Tooltip>
@@ -95,12 +118,23 @@ function Drawer({ mobileOpen, handleDrawerToggle, drawerWidth }) {
                 component={Link}
                 to="/create-request"
                 onClick={handleDrawerToggle}
+                sx={{
+                  borderRadius: '12px',
+                  '&:hover': {
+                    backgroundColor: theme.palette.action.hover,
+                    transform: 'translateX(4px)',
+                  },
+                  transition: 'all 0.2s ease-in-out',
+                }}
               >
-                <ListItemIcon>
+                <ListItemIcon sx={{ minWidth: '40px', color: theme.palette.primary.main }}>
                   <AddBoxIcon />
                 </ListItemIcon>
                 {!isShrunk && (
-                  <ListItemText primary="Create Request" sx={{ color: textColor }} />
+                  <ListItemText
+                    primary="Create Request"
+                    primaryTypographyProps={{ fontWeight: 500, color: textColor }}
+                  />
                 )}
               </ListItem>
             </Tooltip>
@@ -112,12 +146,23 @@ function Drawer({ mobileOpen, handleDrawerToggle, drawerWidth }) {
                 component={Link}
                 to="/my-requests"
                 onClick={handleDrawerToggle}
+                sx={{
+                  borderRadius: '12px',
+                  '&:hover': {
+                    backgroundColor: theme.palette.action.hover,
+                    transform: 'translateX(4px)',
+                  },
+                  transition: 'all 0.2s ease-in-out',
+                }}
               >
-                <ListItemIcon>
+                <ListItemIcon sx={{ minWidth: '40px', color: theme.palette.primary.main }}>
                   <AssignmentIcon />
                 </ListItemIcon>
                 {!isShrunk && (
-                  <ListItemText primary="My Requests" sx={{ color: textColor }} />
+                  <ListItemText
+                    primary="My Requests"
+                    primaryTypographyProps={{ fontWeight: 500, color: textColor }}
+                  />
                 )}
               </ListItem>
             </Tooltip>
@@ -129,12 +174,23 @@ function Drawer({ mobileOpen, handleDrawerToggle, drawerWidth }) {
                 component={Link}
                 to="/all-requests"
                 onClick={handleDrawerToggle}
+                sx={{
+                  borderRadius: '12px',
+                  '&:hover': {
+                    backgroundColor: theme.palette.action.hover,
+                    transform: 'translateX(4px)',
+                  },
+                  transition: 'all 0.2s ease-in-out',
+                }}
               >
-                <ListItemIcon>
+                <ListItemIcon sx={{ minWidth: '40px', color: theme.palette.primary.main }}>
                   <ListAltIcon />
                 </ListItemIcon>
                 {!isShrunk && (
-                  <ListItemText primary="All Requests" sx={{ color: textColor }} />
+                  <ListItemText
+                    primary="All Requests"
+                    primaryTypographyProps={{ fontWeight: 500, color: textColor }}
+                  />
                 )}
               </ListItem>
             </Tooltip>
@@ -146,12 +202,23 @@ function Drawer({ mobileOpen, handleDrawerToggle, drawerWidth }) {
                 component={Link}
                 to="/my-bids"
                 onClick={handleDrawerToggle}
+                sx={{
+                  borderRadius: '12px',
+                  '&:hover': {
+                    backgroundColor: theme.palette.action.hover,
+                    transform: 'translateX(4px)',
+                  },
+                  transition: 'all 0.2s ease-in-out',
+                }}
               >
-                <ListItemIcon>
+                <ListItemIcon sx={{ minWidth: '40px', color: theme.palette.primary.main }}>
                   <GavelIcon />
                 </ListItemIcon>
                 {!isShrunk && (
-                  <ListItemText primary="My Bids" sx={{ color: textColor }} />
+                  <ListItemText
+                    primary="My Bids"
+                    primaryTypographyProps={{ fontWeight: 500, color: textColor }}
+                  />
                 )}
               </ListItem>
             </Tooltip>
@@ -163,12 +230,23 @@ function Drawer({ mobileOpen, handleDrawerToggle, drawerWidth }) {
                 component={Link}
                 to="/conversations"
                 onClick={handleDrawerToggle}
+                sx={{
+                  borderRadius: '12px',
+                  '&:hover': {
+                    backgroundColor: theme.palette.action.hover,
+                    transform: 'translateX(4px)',
+                  },
+                  transition: 'all 0.2s ease-in-out',
+                }}
               >
-                <ListItemIcon>
+                <ListItemIcon sx={{ minWidth: '40px', color: theme.palette.primary.main }}>
                   <ChatIcon />
                 </ListItemIcon>
                 {!isShrunk && (
-                  <ListItemText primary="Conversations" sx={{ color: textColor }} />
+                  <ListItemText
+                    primary="Conversations"
+                    primaryTypographyProps={{ fontWeight: 500, color: textColor }}
+                  />
                 )}
               </ListItem>
             </Tooltip>
@@ -180,32 +258,58 @@ function Drawer({ mobileOpen, handleDrawerToggle, drawerWidth }) {
                 component={Link}
                 to="/profile"
                 onClick={handleDrawerToggle}
+                sx={{
+                  borderRadius: '12px',
+                  '&:hover': {
+                    backgroundColor: theme.palette.action.hover,
+                    transform: 'translateX(4px)',
+                  },
+                  transition: 'all 0.2s ease-in-out',
+                }}
               >
-                <ListItemIcon>
+                <ListItemIcon sx={{ minWidth: '40px', color: theme.palette.primary.main }}>
                   <PersonIcon />
                 </ListItemIcon>
                 {!isShrunk && (
-                  <ListItemText primary="Profile" sx={{ color: textColor }} />
+                  <ListItemText
+                    primary="Profile"
+                    primaryTypographyProps={{ fontWeight: 500, color: textColor }}
+                  />
                 )}
               </ListItem>
             </Tooltip>
 
             {/* Logout */}
             <Tooltip title="Logout" placement="right">
-              <ListItem button onClick={handleLogout}>
-                <ListItemIcon>
+              <ListItem
+                button
+                onClick={handleLogout}
+                sx={{
+                  borderRadius: '12px',
+                  mt: 2,
+                  color: theme.palette.error.main,
+                  '&:hover': {
+                    backgroundColor: theme.palette.error.light,
+                    color: theme.palette.error.dark,
+                    transform: 'translateX(4px)',
+                  },
+                  transition: 'all 0.2s ease-in-out',
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: '40px', color: 'inherit' }}>
                   <LogoutIcon />
                 </ListItemIcon>
                 {!isShrunk && (
-                  <ListItemText primary="Logout" sx={{ color: textColor }} />
+                  <ListItemText
+                    primary="Logout"
+                    primaryTypographyProps={{ fontWeight: 600 }}
+                  />
                 )}
               </ListItem>
             </Tooltip>
           </>
         )}
       </List>
-      <Divider />
-      {/* Add more navigation links or sections here */}
     </div>
   );
 
