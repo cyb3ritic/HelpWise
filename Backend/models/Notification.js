@@ -9,7 +9,7 @@ const NotificationSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['Bid Accepted', 'Bid Rejected'],
+    enum: ['Bid Accepted', 'Bid Rejected', 'Request Created', 'Bid Placed'],
     required: true,
   },
   message: {

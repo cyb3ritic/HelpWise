@@ -52,6 +52,10 @@ router.post(
       });
 
       const request = await newRequest.save();
+
+      // Emit notification to all connected clients
+      req.io.emit('newRequest', request);
+
       res.json(request);
     } catch (err) {
       console.error('Error creating Request:', err.message);

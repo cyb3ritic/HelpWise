@@ -70,6 +70,22 @@ router.post(
       helpRequest.bids.push(bid._id);
       await helpRequest.save();
 
+      // Create Notification for Request Owner
+      const notification = new Notification({
+        user: helpRequest.requesterId,
+        type: 'Bid Placed',
+        message: `A new bid of $${bidAmount} has been placed on your request "${helpRequest.title}".`,
+        relatedBid: bid._id,
+      });
+      await notification.save();
+
+      // Emit notification to the request owner
+      // Assuming we have a way to target specific users, e.g., by joining a room with their userId
+      // In index.js, we should have: socket.join(socket.user.id);
+      // For now, we'll emit to all and let frontend filter, or assume room logic is/will be added.
+      // Better approach: emit to a room named after the user ID.
+      req.io.to(helpRequest.requesterId.toString()).emit('newNotification', notification);
+
       // Re-fetch the bid with populated 'bidderId'
       const populatedBid = await Bid.findById(bid._id).populate('bidderId', 'firstName lastName credibilityPoints');
 
@@ -258,6 +274,15 @@ router.post('/:bidId/accept', auth, async (req, res) => {
       relatedBid: bid._id,
     });
 
+    // Emit notification to the accepted bidder
+    req.io.to(bid.bidderId._id.toString()).emit('newNotification', {
+      user: bid.bidderId._id,
+      type: 'Bid Accepted',
+      message: `Your bid for "${helpRequest.title}" has been accepted.`,
+      relatedBid: bid._id,
+      createdAt: new Date(),
+    });
+
     // Create Notifications for Declined Bids
     const declinedBids = await Bid.find({ helpRequestId: helpRequest._id, status: 'Declined' }).populate('bidderId');
     const notifications = declinedBids.map((declinedBid) => ({
@@ -268,6 +293,11 @@ router.post('/:bidId/accept', auth, async (req, res) => {
     }));
     if (notifications.length > 0) {
       await Notification.insertMany(notifications);
+
+      // Emit notifications to declined bidders
+      notifications.forEach(notification => {
+        req.io.to(notification.user.toString()).emit('newNotification', notification);
+      });
     }
 
     res.json({ msg: 'Bid accepted successfully.' });
@@ -312,6 +342,15 @@ router.post('/:bidId/reject', auth, async (req, res) => {
       type: 'Bid Rejected',
       message: `Your bid for "${helpRequest.title}" has been rejected.`,
       relatedBid: bid._id,
+    });
+
+    // Emit notification to the rejected bidder
+    req.io.to(bid.bidderId._id.toString()).emit('newNotification', {
+      user: bid.bidderId._id,
+      type: 'Bid Rejected',
+      message: `Your bid for "${helpRequest.title}" has been rejected.`,
+      relatedBid: bid._id,
+      createdAt: new Date(),
     });
 
     res.json({ msg: 'Bid rejected successfully.' });

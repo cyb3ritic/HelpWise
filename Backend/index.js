@@ -36,16 +36,22 @@ app.use(helmet());
 
 // Routes
 
+// Middleware to attach io to req
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
+
 app.use('/api/users', require('./Routes/users'));
 app.use('/api/type-of-help', require('./Routes/typeOfHelp'));
 app.use('/api/requests', require('./Routes/requests'));
 app.use('/api/bids', require('./Routes/bids'));
 
-app.use('/api/openai', require('./routes/openai')); 
-app.use('/api/notifications', require('./routes/notifications')); 
-app.use('/api/openai', openaiRisksRoute); 
+app.use('/api/openai', require('./routes/openai'));
+app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/openai', openaiRisksRoute);
 app.use('/api/conversations', conversationsRoute);
-app.use('/api/chatbot', chatbotRoute); 
+app.use('/api/chatbot', chatbotRoute);
 
 // Create HTTP server and attach Socket.IO
 const server = http.createServer(app);
@@ -85,6 +91,9 @@ io.use(async (socket, next) => {
 // Socket.IO Connection
 io.on('connection', (socket) => {
   console.log('New client connected:', socket.id, 'User ID:', socket.user.id);
+
+  // Join a room with the user's ID for private notifications
+  socket.join(socket.user.id);
 
   // Join a room based on conversationId
   socket.on('joinConversation', (conversationId) => {
@@ -152,8 +161,8 @@ mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
-.then(() => console.log('MongoDB Connected'))
-.catch(err => console.log('MongoDB Connection Error:', err));
+  .then(() => console.log('MongoDB Connected'))
+  .catch(err => console.log('MongoDB Connection Error:', err));
 
 // Start Server
 const PORT = process.env.PORT || 9001;
