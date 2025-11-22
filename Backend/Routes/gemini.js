@@ -40,29 +40,32 @@ router.post(
       const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
       // Prepare the enhanced prompt for Gemini
-      const prompt = `You are an expert risk analyst and project management consultant. Analyze the following help request and provide a comprehensive risk assessment.
+      const prompt = `Analyze the following help request and provide a concise, structured risk assessment.
 
 **Help Request Title:** ${title}
-
 **Description:** ${description}
 
-Please provide a detailed analysis in the following format:
+**Instructions:**
+- Identify 3-5 key risks associated with responding to this help request
+- For each risk, provide 1-2 specific prevention measures
+- Use clear, concise bullet points
+- Keep the total response under 300 words
+- Format using Markdown with headers and bullets
 
-## 🚨 Potential Risks
-List 3-5 specific risks that could occur during this project, such as:
-- Technical challenges
-- Communication issues
-- Timeline concerns
-- Quality risks
-- Financial risks
+**Format your response as:**
 
-## 🛡️ Prevention Measures
-For each risk identified, provide actionable prevention measures and best practices.
+## Risk Assessment
 
-## ✅ Success Recommendations
-Provide 2-3 key recommendations to ensure successful project completion.
+### Risk 1: [Risk Name]
+- **Prevention:** [Prevention measure 1]
+- **Prevention:** [Prevention measure 2]
 
-Format your response clearly with bullet points and be specific to this project.`;
+### Risk 2: [Risk Name]
+- **Prevention:** [Prevention measure]
+
+[Continue for remaining risks]`
+
+;
 
       // Generate content using Gemini
       const result = await model.generateContent(prompt);
@@ -121,7 +124,7 @@ router.post(
     const { message, context } = req.body;
 
     try {
-      const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
       // Build prompt with optional context
       let prompt = message;
@@ -151,7 +154,7 @@ router.post(
  */
 router.get('/test', auth, async (req, res) => {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
     const result = await model.generateContent('Say "Gemini API is working!"');
     const response = await result.response;
     const text = response.text();
