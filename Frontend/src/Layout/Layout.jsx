@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, CssBaseline, Toolbar } from '@mui/material';
+import { Box, CssBaseline, Toolbar, useTheme, useMediaQuery } from '@mui/material';
 import Navbar from '../components/Navbar';
 import Drawer from '../components/Drawer';
 import Footer from '../components/Footer';
@@ -10,13 +10,17 @@ function Layout({ toggleTheme }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [drawerShrink, setDrawerShrink] = useState(false);
   const location = useLocation();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   // Determine Drawer width based on shrink state
   const drawerWidth = drawerShrink ? 80 : 240;
 
   // Toggle Drawer open/close for mobile
   const handleDrawerToggle = () => {
-    setMobileOpen(!mobileOpen);
+    if (isMobile) {
+      setMobileOpen(!mobileOpen);
+    }
   };
 
   // Toggle Drawer shrink/expand

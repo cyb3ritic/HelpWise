@@ -9,6 +9,7 @@ import {
   ListItemIcon,
   Divider,
   Tooltip,
+  useMediaQuery,
 } from '@mui/material';
 import HomeIcon from '@mui/icons-material/Home';
 import SupportAgentIcon from '@mui/icons-material/SupportAgent';
@@ -28,6 +29,7 @@ function Drawer({ mobileOpen, handleDrawerToggle, drawerWidth }) {
   const navigate = useNavigate();
   const { user, setUser } = useContext(AuthContext);
   const theme = useTheme(); // Access the current theme
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   // Handle user logout
   const handleLogout = async () => {
@@ -35,10 +37,16 @@ function Drawer({ mobileOpen, handleDrawerToggle, drawerWidth }) {
       await axios.get('/api/users/logout', { withCredentials: true });
       setUser(null);
       navigate('/');
-      handleDrawerToggle();
+      if (isMobile) handleDrawerToggle();
     } catch (err) {
       console.error(err);
       // Optionally handle error (e.g., show notification)
+    }
+  };
+
+  const handleItemClick = () => {
+    if (isMobile) {
+      handleDrawerToggle();
     }
   };
 
@@ -58,7 +66,7 @@ function Drawer({ mobileOpen, handleDrawerToggle, drawerWidth }) {
             button
             component={Link}
             to="/help"
-            onClick={handleDrawerToggle}
+            onClick={handleItemClick}
           >
             <ListItemIcon>
               <SupportAgentIcon />
@@ -75,7 +83,7 @@ function Drawer({ mobileOpen, handleDrawerToggle, drawerWidth }) {
             button
             component={Link}
             to="/"
-            onClick={handleDrawerToggle}
+            onClick={handleItemClick}
           >
             <ListItemIcon>
               <HomeIcon />
@@ -94,7 +102,7 @@ function Drawer({ mobileOpen, handleDrawerToggle, drawerWidth }) {
                 button
                 component={Link}
                 to="/create-request"
-                onClick={handleDrawerToggle}
+                onClick={handleItemClick}
               >
                 <ListItemIcon>
                   <AddBoxIcon />
@@ -111,7 +119,7 @@ function Drawer({ mobileOpen, handleDrawerToggle, drawerWidth }) {
                 button
                 component={Link}
                 to="/my-requests"
-                onClick={handleDrawerToggle}
+                onClick={handleItemClick}
               >
                 <ListItemIcon>
                   <AssignmentIcon />
@@ -128,7 +136,7 @@ function Drawer({ mobileOpen, handleDrawerToggle, drawerWidth }) {
                 button
                 component={Link}
                 to="/all-requests"
-                onClick={handleDrawerToggle}
+                onClick={handleItemClick}
               >
                 <ListItemIcon>
                   <ListAltIcon />
@@ -145,7 +153,7 @@ function Drawer({ mobileOpen, handleDrawerToggle, drawerWidth }) {
                 button
                 component={Link}
                 to="/my-bids"
-                onClick={handleDrawerToggle}
+                onClick={handleItemClick}
               >
                 <ListItemIcon>
                   <GavelIcon />
@@ -162,7 +170,7 @@ function Drawer({ mobileOpen, handleDrawerToggle, drawerWidth }) {
                 button
                 component={Link}
                 to="/conversations"
-                onClick={handleDrawerToggle}
+                onClick={handleItemClick}
               >
                 <ListItemIcon>
                   <ChatIcon />
@@ -179,7 +187,7 @@ function Drawer({ mobileOpen, handleDrawerToggle, drawerWidth }) {
                 button
                 component={Link}
                 to="/profile"
-                onClick={handleDrawerToggle}
+                onClick={handleItemClick}
               >
                 <ListItemIcon>
                   <PersonIcon />

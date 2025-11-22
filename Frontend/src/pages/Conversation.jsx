@@ -762,45 +762,53 @@ function Conversation() {
 
           {/* Glass Input Area */}
           <GlassInputArea>
-            <ModernInput
-              placeholder={`Message ${otherParticipant?.firstName}...`}
-              value={newMessage}
-              onChange={(e) => {
-                setNewMessage(e.target.value);
-                handleTyping();
-              }}
-              multiline
-              maxRows={4}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSendMessage();
-                }
-              }}
-              disabled={sendingMessage}
-              endAdornment={
-                !isMobile && (
-                  <Typography variant="caption" sx={{ opacity: 0.5, mr: 1 }}>
-                    Press Enter to send
-                  </Typography>
-                )
-              }
-            />
+            {conversation.requestId && (conversation.requestId.status === 'Closed' || conversation.requestId.status === 'Completed') ? (
+              <Alert severity="info" sx={{ width: '100%' }}>
+                This conversation is disabled because the help request is {conversation.requestId.status.toLowerCase()}.
+              </Alert>
+            ) : (
+              <>
+                <ModernInput
+                  placeholder={`Message ${otherParticipant?.firstName}...`}
+                  value={newMessage}
+                  onChange={(e) => {
+                    setNewMessage(e.target.value);
+                    handleTyping();
+                  }}
+                  multiline
+                  maxRows={4}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendMessage();
+                    }
+                  }}
+                  disabled={sendingMessage}
+                  endAdornment={
+                    !isMobile && (
+                      <Typography variant="caption" sx={{ opacity: 0.5, mr: 1 }}>
+                        Press Enter to send
+                      </Typography>
+                    )
+                  }
+                />
 
-            <Tooltip title={newMessage.trim() ? 'Send message' : 'Type a message'} arrow>
-              <span>
-                <GradientSendButton
-                  onClick={handleSendMessage}
-                  disabled={!newMessage.trim() || sendingMessage}
-                >
-                  {sendingMessage ? (
-                    <CircularProgress size={24} sx={{ color: 'inherit' }} />
-                  ) : (
-                    <SendIcon />
-                  )}
-                </GradientSendButton>
-              </span>
-            </Tooltip>
+                <Tooltip title={newMessage.trim() ? 'Send message' : 'Type a message'} arrow>
+                  <span>
+                    <GradientSendButton
+                      onClick={handleSendMessage}
+                      disabled={!newMessage.trim() || sendingMessage}
+                    >
+                      {sendingMessage ? (
+                        <CircularProgress size={24} sx={{ color: 'inherit' }} />
+                      ) : (
+                        <SendIcon />
+                      )}
+                    </GradientSendButton>
+                  </span>
+                </Tooltip>
+              </>
+            )}
           </GlassInputArea>
         </ChatContainer>
       </Fade>
@@ -842,8 +850,8 @@ function Conversation() {
             Clear Chat
           </Button>
         </DialogActions>
-      </Dialog>
-    </Container>
+      </Dialog >
+    </Container >
   );
 }
 

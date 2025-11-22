@@ -6,6 +6,7 @@ const Request = require('../models/Request');
 const TypeOfHelp = require('../models/TypeOfHelp');
 const Bid = require('../models/Bid');
 const User = require('../models/User');
+const Conversation = require('../models/Conversation');
 const auth = require('../middleware/auth');
 const mongoose = require('mongoose');
 
@@ -270,9 +271,9 @@ router.put('/:id/accept-bid', auth, async (req, res) => {
 
     // Can only accept bids if request is Open
     if (request.status !== 'Open') {
-      return res.status(400).json({ 
+      return res.status(400).json({
         msg: 'Can only accept bids for requests with "Open" status.',
-        currentStatus: request.status 
+        currentStatus: request.status
       });
     }
 
@@ -294,23 +295,38 @@ router.put('/:id/accept-bid', auth, async (req, res) => {
 
     // Reject all other pending bids for this request
     await Bid.updateMany(
-      { 
-        helpRequestId: req.params.id, 
+      {
+        helpRequestId: req.params.id,
         _id: { $ne: bidId },
         status: 'Pending'
       },
       { status: 'Rejected' }
     );
 
+    // Create or Find Conversation between Requester and Bidder
+    let conversation = await Conversation.findOne({
+      participants: { $all: [req.user.id, bid.bidderId], $size: 2 },
+      requestId: request._id,
+    });
+
+    if (!conversation) {
+      conversation = new Conversation({
+        participants: [req.user.id, bid.bidderId],
+        requestId: request._id,
+      });
+      await conversation.save();
+    }
+
     // Emit notification if socket.io is available
     if (req.io) {
       req.io.emit('bidAccepted', { requestId: request._id, bidId });
     }
 
-    res.json({ 
-      msg: 'Bid accepted successfully. Request marked as In Progress.', 
+    res.json({
+      msg: 'Bid accepted successfully. Request marked as In Progress.',
       request,
-      acceptedBid: bid 
+      acceptedBid: bid,
+      conversationId: conversation._id
     });
   } catch (err) {
     console.error('Error accepting bid:', err.message);
@@ -337,16 +353,16 @@ router.put('/:id/complete', auth, async (req, res) => {
 
     // Can only complete requests that are "In Progress"
     if (request.status !== 'In Progress') {
-      return res.status(400).json({ 
+      return res.status(400).json({
         msg: 'Only requests with status "In Progress" can be marked as completed.',
-        currentStatus: request.status 
+        currentStatus: request.status
       });
     }
 
     // Must have an accepted bidder
     if (!request.acceptedBidderId) {
-      return res.status(400).json({ 
-        msg: 'Cannot complete request without an accepted helper.' 
+      return res.status(400).json({
+        msg: 'Cannot complete request without an accepted helper.'
       });
     }
 
@@ -363,15 +379,15 @@ router.put('/:id/complete', auth, async (req, res) => {
 
     // Emit notification
     if (req.io) {
-      req.io.emit('requestCompleted', { 
+      req.io.emit('requestCompleted', {
         requestId: request._id,
-        helperId: request.acceptedBidderId 
+        helperId: request.acceptedBidderId
       });
     }
 
-    res.json({ 
-      msg: 'Request marked as completed successfully!', 
-      request 
+    res.json({
+      msg: 'Request marked as completed successfully!',
+      request
     });
   } catch (err) {
     console.error('Error completing request:', err.message);
@@ -457,9 +473,9 @@ router.put('/:id/cancel', auth, async (req, res) => {
       { status: 'Rejected' }
     );
 
-    res.json({ 
-      msg: 'Request cancelled successfully', 
-      request 
+    res.json({
+      msg: 'Request cancelled successfully',
+      request
     });
   } catch (err) {
     console.error('Error cancelling request:', err.message);

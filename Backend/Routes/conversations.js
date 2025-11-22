@@ -86,7 +86,9 @@ router.get('/:conversationId', auth, async (req, res) => {
   }
 
   try {
-    const conversation = await Conversation.findById(conversationId).populate('participants', 'firstName lastName email');
+    const conversation = await Conversation.findById(conversationId)
+      .populate('participants', 'firstName lastName email')
+      .populate('requestId', 'status');
     if (!conversation) {
       return res.status(404).json({ msg: 'Conversation not found' });
     }
@@ -99,6 +101,39 @@ router.get('/:conversationId', auth, async (req, res) => {
     res.json(conversation);
   } catch (err) {
     console.error('Error fetching conversation:', err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+/**
+ * @route   GET /api/conversations/request/:requestId
+ * @desc    Get conversation by request ID
+ * @access  Private
+ */
+router.get('/request/:requestId', auth, async (req, res) => {
+  const { requestId } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(requestId)) {
+    return res.status(400).json({ msg: 'Invalid Request ID' });
+  }
+
+  try {
+    const conversation = await Conversation.findOne({ requestId })
+      .populate('participants', 'firstName lastName email')
+      .populate('requestId', 'status');
+
+    if (!conversation) {
+      return res.status(404).json({ msg: 'Conversation not found for this request' });
+    }
+
+    // Ensure the authenticated user is part of the conversation
+    if (!conversation.participants.some((p) => p._id.toString() === req.user.id)) {
+      return res.status(403).json({ msg: 'Access denied' });
+    }
+
+    res.json(conversation);
+  } catch (err) {
+    console.error('Error fetching conversation by request:', err.message);
     res.status(500).send('Server Error');
   }
 });
@@ -125,9 +160,14 @@ router.post(
     }
 
     try {
-      const conversation = await Conversation.findById(conversationId);
+      const conversation = await Conversation.findById(conversationId).populate('requestId');
       if (!conversation) {
         return res.status(404).json({ msg: 'Conversation not found' });
+      }
+
+      // Check if the associated request is closed or completed
+      if (conversation.requestId && (conversation.requestId.status === 'Closed' || conversation.requestId.status === 'Completed')) {
+        return res.status(400).json({ msg: 'Chat is disabled for this request.' });
       }
 
       // Ensure the authenticated user is part of the conversation

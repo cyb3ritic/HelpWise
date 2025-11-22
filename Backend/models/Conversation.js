@@ -9,6 +9,10 @@ const ConversationSchema = new mongoose.Schema(
         ref: 'User',
       },
     ],
+    requestId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Request',
+    },
   },
   { timestamps: true }
 );

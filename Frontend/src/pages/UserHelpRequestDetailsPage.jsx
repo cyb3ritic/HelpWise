@@ -26,13 +26,14 @@ import {
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
-import { 
-  AccessTime, 
-  AttachMoney, 
-  Description, 
-  CheckCircle, 
+import {
+  AccessTime,
+  AttachMoney,
+  Description,
+  CheckCircle,
   Cancel,
-  Person 
+  Person,
+  Chat as ChatIcon
 } from '@mui/icons-material';
 
 function UserHelpRequestDetailsPage() {
@@ -44,6 +45,7 @@ function UserHelpRequestDetailsPage() {
   const [bidder, setBidder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [conversationId, setConversationId] = useState(null);
 
   // State for Accept/Reject Dialogs
   const [openDialog, setOpenDialog] = useState(false);
@@ -82,6 +84,16 @@ function UserHelpRequestDetailsPage() {
           setBidder(resBidder.data[0]);
         }
 
+        // Fetch conversation if request is In Progress or Completed
+        if (resRequest.data.status === 'In Progress' || resRequest.data.status === 'Completed') {
+          try {
+            const resConv = await axios.get(`/api/conversations/request/${requestId}`, { withCredentials: true });
+            setConversationId(resConv.data._id);
+          } catch (convErr) {
+            console.log('No conversation found yet or error fetching:', convErr);
+          }
+        }
+
         setLoading(false);
       } catch (err) {
         console.error('Error fetching help request or bidder:', err);
@@ -98,31 +110,35 @@ function UserHelpRequestDetailsPage() {
   // Handle Accept Bid (calls the new /accept-bid endpoint)
   const handleAcceptBid = async (bidId) => {
     try {
-      await axios.put(
+      const res = await axios.put(
         `/api/requests/${requestId}/accept-bid`,
         { bidId },
         { withCredentials: true }
       );
-      setSnackbar({ 
-        open: true, 
-        message: '✅ Bid accepted! Request is now In Progress.', 
-        severity: 'success' 
+
+      if (res.data.conversationId) {
+        setConversationId(res.data.conversationId);
+      }
+      setSnackbar({
+        open: true,
+        message: '✅ Bid accepted! Request is now In Progress.',
+        severity: 'success'
       });
-      
+
       // Refresh data
       const resRequest = await axios.get(`/api/requests/${requestId}`, { withCredentials: true });
       setHelpRequest(resRequest.data);
-      
+
       const resBidder = await axios.get(`/api/requests/${requestId}/bidders`, { withCredentials: true });
       if (!resBidder.data.msg) {
         setBidder(resBidder.data[0]);
       }
     } catch (err) {
       console.error('Error accepting bid:', err);
-      setSnackbar({ 
-        open: true, 
-        message: err.response?.data?.msg || 'Failed to accept bid', 
-        severity: 'error' 
+      setSnackbar({
+        open: true,
+        message: err.response?.data?.msg || 'Failed to accept bid',
+        severity: 'error'
       });
     }
   };
@@ -136,24 +152,24 @@ function UserHelpRequestDetailsPage() {
         {},
         { withCredentials: true }
       );
-      
-      setSnackbar({ 
-        open: true, 
-        message: '🎉 Request marked as completed successfully!', 
-        severity: 'success' 
+
+      setSnackbar({
+        open: true,
+        message: '🎉 Request marked as completed successfully!',
+        severity: 'success'
       });
-      
+
       setOpenCompleteDialog(false);
-      
+
       // Refresh data
       const resRequest = await axios.get(`/api/requests/${requestId}`, { withCredentials: true });
       setHelpRequest(resRequest.data);
     } catch (err) {
       console.error('Error completing request:', err);
-      setSnackbar({ 
-        open: true, 
-        message: err.response?.data?.msg || 'Failed to mark as completed', 
-        severity: 'error' 
+      setSnackbar({
+        open: true,
+        message: err.response?.data?.msg || 'Failed to mark as completed',
+        severity: 'error'
       });
     } finally {
       setCompleting(false);
@@ -163,10 +179,10 @@ function UserHelpRequestDetailsPage() {
   // Handle Cancel Request
   const handleCancelRequest = async () => {
     if (!cancelReason.trim()) {
-      setSnackbar({ 
-        open: true, 
-        message: 'Please provide a cancellation reason', 
-        severity: 'warning' 
+      setSnackbar({
+        open: true,
+        message: 'Please provide a cancellation reason',
+        severity: 'warning'
       });
       return;
     }
@@ -178,21 +194,21 @@ function UserHelpRequestDetailsPage() {
         { reason: cancelReason },
         { withCredentials: true }
       );
-      
-      setSnackbar({ 
-        open: true, 
-        message: 'Request cancelled successfully', 
-        severity: 'info' 
+
+      setSnackbar({
+        open: true,
+        message: 'Request cancelled successfully',
+        severity: 'info'
       });
-      
+
       setOpenCancelDialog(false);
       navigate('/my-requests');
     } catch (err) {
       console.error('Error cancelling request:', err);
-      setSnackbar({ 
-        open: true, 
-        message: err.response?.data?.msg || 'Failed to cancel request', 
-        severity: 'error' 
+      setSnackbar({
+        open: true,
+        message: err.response?.data?.msg || 'Failed to cancel request',
+        severity: 'error'
       });
     } finally {
       setCancelling(false);
@@ -227,16 +243,16 @@ function UserHelpRequestDetailsPage() {
 
       const resRequest = await axios.get(`/api/requests/${requestId}`, { withCredentials: true });
       setHelpRequest(resRequest.data);
-      
+
       setOpenDialog(false);
       setSelectedBidId(null);
       setDialogAction('');
     } catch (err) {
       console.error('Error performing action on bid:', err);
-      setSnackbar({ 
-        open: true, 
-        message: err.response?.data?.msg || 'Action failed.', 
-        severity: 'error' 
+      setSnackbar({
+        open: true,
+        message: err.response?.data?.msg || 'Action failed.',
+        severity: 'error'
       });
       setOpenDialog(false);
     }
@@ -263,13 +279,13 @@ function UserHelpRequestDetailsPage() {
         { newResponseDeadline },
         { withCredentials: true }
       );
-      
-      setSnackbar({ 
-        open: true, 
-        message: response.data.msg || 'Response deadline updated.', 
-        severity: 'success' 
+
+      setSnackbar({
+        open: true,
+        message: response.data.msg || 'Response deadline updated.',
+        severity: 'success'
       });
-      
+
       setHelpRequest({ ...helpRequest, responseDeadline: new Date(newResponseDeadline) });
       setOpenResponseDialog(false);
       setNewResponseDeadline('');
@@ -350,8 +366,8 @@ function UserHelpRequestDetailsPage() {
                   <Typography variant="h5" fontWeight="bold" gutterBottom>
                     {helpRequest.title}
                   </Typography>
-                  <Chip 
-                    label={helpRequest.status} 
+                  <Chip
+                    label={helpRequest.status}
                     color={getStatusColor(helpRequest.status)}
                     sx={{ mb: 2 }}
                   />
@@ -387,22 +403,33 @@ function UserHelpRequestDetailsPage() {
                 </Grid>
 
                 {/* Helper Info - Show if In Progress or Completed */}
-                {(helpRequest.status === 'In Progress' || helpRequest.status === 'Completed') && 
-                 helpRequest.acceptedBidderId && (
-                  <Box sx={{ mt: 2, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
-                    <Stack direction="row" spacing={2} alignItems="center">
-                      <Person />
-                      <Box>
-                        <Typography variant="caption" color="text.secondary">
-                          Accepted Helper
-                        </Typography>
-                        <Typography variant="body1" fontWeight="600">
-                          {helpRequest.acceptedBidderId.firstName} {helpRequest.acceptedBidderId.lastName}
-                        </Typography>
-                      </Box>
-                    </Stack>
-                  </Box>
-                )}
+                {(helpRequest.status === 'In Progress' || helpRequest.status === 'Completed') &&
+                  helpRequest.acceptedBidderId && (
+                    <Box sx={{ mt: 2, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
+                      <Stack direction="row" spacing={2} alignItems="center">
+                        <Person />
+                        <Box>
+                          <Typography variant="caption" color="text.secondary">
+                            Accepted Helper
+                          </Typography>
+                          <Typography variant="body1" fontWeight="600">
+                            {helpRequest.acceptedBidderId.firstName} {helpRequest.acceptedBidderId.lastName}
+                          </Typography>
+                          {conversationId && (
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              startIcon={<ChatIcon />}
+                              onClick={() => navigate(`/conversations/${conversationId}`)}
+                              sx={{ mt: 1 }}
+                            >
+                              Chat with Helper
+                            </Button>
+                          )}
+                        </Box>
+                      </Stack>
+                    </Box>
+                  )}
 
                 {/* Completed At */}
                 {helpRequest.status === 'Completed' && helpRequest.completedAt && (
@@ -468,7 +495,7 @@ function UserHelpRequestDetailsPage() {
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>Best Bidder</Typography>
-              
+
               {!bidder ? (
                 <Typography variant="body2" color="text.secondary">
                   No bids available for this help request.
