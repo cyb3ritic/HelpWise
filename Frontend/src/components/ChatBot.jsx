@@ -1,4 +1,5 @@
 // components/Chatbot.jsx
+
 import React, { useState, useEffect, useRef, useContext } from 'react';
 import {
   Box,
@@ -22,23 +23,245 @@ import {
   AppBar,
   Toolbar,
   Badge,
+  Divider,
 } from '@mui/material';
-import ChatIcon from '@mui/icons-material/Chat';
-import SendIcon from '@mui/icons-material/Send';
-import BotIcon from '@mui/icons-material/SmartToy';
-import UserIcon from '@mui/icons-material/Person';
-import CloseIcon from '@mui/icons-material/Close';
-import ClearAllIcon from '@mui/icons-material/ClearAll';
+import {
+  Chat as ChatIcon,
+  Send as SendIcon,
+  SmartToy as BotIcon,
+  Person as UserIcon,
+  Close as CloseIcon,
+  DeleteSweep as ClearAllIcon,
+  AutoAwesome as AutoAwesomeIcon,
+  HelpOutline as HelpOutlineIcon,
+  BugReport as BugReportIcon,
+  SupportAgent as SupportAgentIcon,
+} from '@mui/icons-material';
+import { styled, alpha, keyframes } from '@mui/material/styles';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 
 const GUEST_STORAGE_KEY = 'chatbot_guest_messages';
 
+// --- Animations ---
+
+const float = keyframes`
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+`;
+
+const pulse = keyframes`
+  0% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.7); }
+  70% { box-shadow: 0 0 0 12px rgba(102, 126, 234, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0); }
+`;
+
+const fadeInUp = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+const bounce = keyframes`
+  0%, 80%, 100% { transform: scale(0); opacity: 0.5; }
+  40% { transform: scale(1); opacity: 1; }
+`;
+
+// --- Styled Components ---
+
+const FloatingButton = styled(IconButton)(({ theme }) => ({
+  width: 64,
+  height: 64,
+  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+  color: 'white',
+  boxShadow: '0 8px 24px rgba(102, 126, 234, 0.4)',
+  animation: `${float} 3s ease-in-out infinite`,
+  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+  '&:hover': {
+    background: 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)',
+    transform: 'scale(1.15) rotate(10deg)',
+    boxShadow: '0 12px 32px rgba(102, 126, 234, 0.6)',
+  },
+}));
+
+const GradientAppBar = styled(AppBar)(({ theme }) => ({
+  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+  backdropFilter: 'blur(20px)',
+  boxShadow: '0 4px 30px rgba(0, 0, 0, 0.15)',
+}));
+
+const MessagesContainer = styled(Box)(({ theme }) => ({
+  flexGrow: 1,
+  overflowY: 'auto',
+  background: theme.palette.mode === 'dark'
+    ? 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)'
+    : 'linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%)',
+  padding: theme.spacing(2),
+  position: 'relative',
+  '&::before': {
+    content: '""',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: theme.palette.mode === 'dark'
+      ? `radial-gradient(circle at 20% 30%, ${alpha('#667eea', 0.08)} 0%, transparent 50%),
+         radial-gradient(circle at 80% 70%, ${alpha('#764ba2', 0.08)} 0%, transparent 50%)`
+      : `radial-gradient(circle at 20% 30%, ${alpha('#667eea', 0.04)} 0%, transparent 50%),
+         radial-gradient(circle at 80% 70%, ${alpha('#764ba2', 0.04)} 0%, transparent 50%)`,
+    pointerEvents: 'none',
+  },
+  '&::-webkit-scrollbar': {
+    width: '6px',
+  },
+  '&::-webkit-scrollbar-track': {
+    background: 'transparent',
+  },
+  '&::-webkit-scrollbar-thumb': {
+    background: alpha('#667eea', 0.3),
+    borderRadius: '3px',
+    '&:hover': {
+      background: alpha('#667eea', 0.5),
+    },
+  },
+}));
+
+const MessageBubble = styled(Paper)(({ theme, sender }) => ({
+  padding: theme.spacing(1.5, 2),
+  maxWidth: '75%',
+  backgroundColor: sender === 'user'
+    ? '#667eea'
+    : theme.palette.mode === 'dark'
+      ? alpha('#ffffff', 0.1)
+      : '#ffffff',
+  color: sender === 'user' ? '#ffffff' : theme.palette.text.primary,
+  borderRadius: sender === 'user' ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
+  boxShadow: sender === 'user'
+    ? '0 4px 20px rgba(102, 126, 234, 0.4)'
+    : '0 2px 12px rgba(0,0,0,0.08)',
+  wordWrap: 'break-word',
+  animation: `${fadeInUp} 0.3s ease-out`,
+  transition: 'all 0.2s ease',
+  '&:hover': {
+    transform: 'translateY(-2px)',
+    boxShadow: sender === 'user'
+      ? '0 6px 24px rgba(102, 126, 234, 0.5)'
+      : '0 4px 16px rgba(0,0,0,0.12)',
+  },
+}));
+
+const StyledAvatar = styled(Avatar)(({ theme, sender }) => ({
+  width: 36,
+  height: 36,
+  background: sender === 'user'
+    ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+    : 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+  border: `2px solid ${alpha(theme.palette.background.paper, 0.5)}`,
+}));
+
+const InputContainer = styled(Box)(({ theme }) => ({
+  padding: theme.spacing(2),
+  background: theme.palette.mode === 'dark'
+    ? alpha('#1a1a2e', 0.95)
+    : '#ffffff',
+  backdropFilter: 'blur(20px)',
+  borderTop: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+  boxShadow: '0 -4px 20px rgba(0,0,0,0.05)',
+}));
+
+const StyledTextField = styled(TextField)(({ theme }) => ({
+  '& .MuiOutlinedInput-root': {
+    borderRadius: theme.spacing(3),
+    backgroundColor: theme.palette.mode === 'dark'
+      ? alpha('#ffffff', 0.05)
+      : alpha('#667eea', 0.04),
+    border: `2px solid ${alpha(theme.palette.divider, 0.1)}`,
+    transition: 'all 0.3s ease',
+    '& fieldset': {
+      border: 'none',
+    },
+    '&:hover': {
+      backgroundColor: theme.palette.mode === 'dark'
+        ? alpha('#ffffff', 0.08)
+        : alpha('#667eea', 0.06),
+      border: `2px solid ${alpha('#667eea', 0.3)}`,
+    },
+    '&.Mui-focused': {
+      backgroundColor: theme.palette.background.paper,
+      border: `2px solid #667eea`,
+      boxShadow: `0 0 0 4px ${alpha('#667eea', 0.1)}`,
+    },
+  },
+}));
+
+const SendButton = styled(IconButton)(({ theme, disabled }) => ({
+  width: 48,
+  height: 48,
+  background: disabled
+    ? theme.palette.action.disabledBackground
+    : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+  color: '#ffffff',
+  boxShadow: disabled ? 'none' : '0 4px 12px rgba(102, 126, 234, 0.4)',
+  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+  '&:hover': {
+    background: disabled
+      ? theme.palette.action.disabledBackground
+      : 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)',
+    transform: disabled ? 'none' : 'scale(1.1) rotate(15deg)',
+    boxShadow: disabled ? 'none' : '0 6px 20px rgba(102, 126, 234, 0.6)',
+  },
+  '&:disabled': {
+    backgroundColor: theme.palette.action.disabledBackground,
+    color: theme.palette.action.disabled,
+  },
+}));
+
+const QuickActionChip = styled(Chip)(({ theme }) => ({
+  background: theme.palette.mode === 'dark'
+    ? alpha('#ffffff', 0.08)
+    : '#ffffff',
+  border: `2px solid ${alpha('#667eea', 0.3)}`,
+  color: '#667eea',
+  fontWeight: 600,
+  transition: 'all 0.3s ease',
+  '&:hover': {
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    color: '#ffffff',
+    transform: 'translateY(-2px)',
+    boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)',
+  },
+}));
+
+const StatusBadge = styled(Box)(({ theme }) => ({
+  width: 10,
+  height: 10,
+  borderRadius: '50%',
+  backgroundColor: '#10b981',
+  animation: `${pulse} 2s infinite`,
+  border: `2px solid ${theme.palette.background.paper}`,
+}));
+
+const HeaderButton = styled(IconButton)(({ theme }) => ({
+  color: 'white',
+  transition: 'all 0.3s ease',
+  '&:hover': {
+    backgroundColor: alpha('#ffffff', 0.15),
+    transform: 'scale(1.1)',
+  },
+}));
+
 function Chatbot() {
   const { user } = useContext(AuthContext);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  
+
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -46,22 +269,31 @@ function Chatbot() {
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
-  
+
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const isInitialLoadRef = useRef(false);
 
   const quickActions = [
-    { label: 'Get Help', value: 'I need help with the platform' },
-    { label: 'Report Issue', value: 'I want to report an issue' },
-    { label: 'Contact Support', value: 'How can I contact support?' },
+    {
+      label: 'Get Help',
+      value: 'I need help with the platform',
+      icon: <HelpOutlineIcon />
+    },
+    {
+      label: 'Report Issue',
+      value: 'I want to report an issue',
+      icon: <BugReportIcon />
+    },
+    {
+      label: 'Contact Support',
+      value: 'How can I contact support?',
+      icon: <SupportAgentIcon />
+    },
   ];
 
-  // ==========================================
-  // LOAD CHAT HISTORY WHEN USER CHANGES
-  // ==========================================
+  // Load chat history when user changes
   useEffect(() => {
-    console.log('[FRONTEND] User state:', user ? `Logged in (${user.id})` : 'Guest');
     loadChatHistory();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
@@ -90,71 +322,46 @@ function Chatbot() {
     }
   }, [messages, open]);
 
-  /**
-   * Load chat history based on authentication status
-   * - Authenticated: Load from MongoDB database
-   * - Guest: Load from browser localStorage
-   */
   const loadChatHistory = async () => {
-    if (isInitialLoadRef.current) {
-      console.log('[FRONTEND] Already loaded, skipping duplicate load');
-      return;
-    }
+    if (isInitialLoadRef.current) return;
 
     setIsLoadingHistory(true);
-    console.log('[FRONTEND] 🔄 Loading chat history...');
-    
+
     try {
       if (user) {
-        // ========== AUTHENTICATED USER ==========
-        console.log('[FRONTEND] 🔐 User is authenticated, fetching from database...');
-        
-        const res = await axios.get('/api/chatbot/history', { 
-          withCredentials: true 
-        });
-        
+        const res = await axios.get('/api/chatbot/history', { withCredentials: true });
         const loadedMessages = res.data.messages || [];
         setMessages(loadedMessages);
         isInitialLoadRef.current = true;
-        
-        console.log(`[FRONTEND] ✅ Loaded ${loadedMessages.length} messages from database`);
-        
-        // Clear guest data if any
+
         localStorage.removeItem(GUEST_STORAGE_KEY);
-        
+
         if (loadedMessages.length > 0) {
           setSnackbar({
             open: true,
-            message: `Welcome back! Loaded ${loadedMessages.length} messages from your history.`,
+            message: `Welcome back! Loaded ${loadedMessages.length} messages`,
             severity: 'success'
           });
         }
       } else {
-        // ========== GUEST USER ==========
-        console.log('[FRONTEND] 👤 Guest mode, loading from localStorage...');
-        
         const guestMessages = localStorage.getItem(GUEST_STORAGE_KEY);
         if (guestMessages) {
           try {
             const parsed = JSON.parse(guestMessages);
             setMessages(parsed);
             isInitialLoadRef.current = true;
-            console.log(`[FRONTEND] ✅ Loaded ${parsed.length} messages from localStorage`);
           } catch (e) {
-            console.error('[FRONTEND] ❌ Error parsing localStorage:', e);
             localStorage.removeItem(GUEST_STORAGE_KEY);
             setMessages([]);
           }
         } else {
-          console.log('[FRONTEND] 📭 No guest messages found');
           setMessages([]);
           isInitialLoadRef.current = true;
         }
       }
     } catch (err) {
-      console.error('[FRONTEND] ❌ Error loading history:', err);
-      
-      // Fallback for guests
+      console.error('Error loading history:', err);
+
       if (!user) {
         const guestMessages = localStorage.getItem(GUEST_STORAGE_KEY);
         if (guestMessages) {
@@ -170,11 +377,11 @@ function Chatbot() {
         setMessages([]);
         setSnackbar({
           open: true,
-          message: 'Failed to load chat history. Please refresh.',
+          message: 'Failed to load chat history',
           severity: 'error'
         });
       }
-      
+
       isInitialLoadRef.current = true;
     } finally {
       setIsLoadingHistory(false);
@@ -182,9 +389,7 @@ function Chatbot() {
   };
 
   const scrollToBottom = () => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
-    }
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   };
 
   const toggleDrawer = () => {
@@ -192,33 +397,21 @@ function Chatbot() {
     if (!open) setUnreadCount(0);
   };
 
-  /**
-   * Send message to chatbot
-   * - For authenticated users: Backend fetches history from DB automatically
-   * - For guests: Send full context from localStorage
-   */
   const handleSendMessage = async (messageText = input) => {
     const text = messageText.trim();
     if (!text || typing) return;
 
-    const userMsg = { 
-      sender: 'user', 
-      text, 
-      timestamp: new Date().toISOString() 
+    const userMsg = {
+      sender: 'user',
+      text,
+      timestamp: new Date().toISOString()
     };
 
-    console.log('\n========================================');
-    console.log('[FRONTEND] 📤 Sending message:', text.substring(0, 50) + '...');
-    console.log('[FRONTEND] User status:', user ? `Logged in (${user.id})` : 'Guest');
-
-    // Update UI optimistically
     const updatedMessages = [...messages, userMsg];
     setMessages(updatedMessages);
-    
-    // Save guest messages to localStorage immediately
+
     if (!user) {
       localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(updatedMessages));
-      console.log('[FRONTEND] 💾 Saved guest message to localStorage');
     }
 
     setInput('');
@@ -227,49 +420,34 @@ function Chatbot() {
     try {
       const payload = {
         message: text,
-        // IMPORTANT: Only send context for GUEST users
-        // Authenticated users have their context fetched from DB automatically
         context: !user ? updatedMessages : undefined
       };
 
-      console.log(`[FRONTEND] 📡 Sending to backend... Context size: ${user ? 'DB will provide' : updatedMessages.length}`);
+      const res = await axios.post('/api/chatbot', payload, { withCredentials: true });
 
-      const res = await axios.post('/api/chatbot', payload, { 
-        withCredentials: true 
-      });
-      
-      const botMsg = { 
-        sender: 'bot', 
-        text: res.data.message, 
-        timestamp: new Date().toISOString() 
+      const botMsg = {
+        sender: 'bot',
+        text: res.data.message,
+        timestamp: new Date().toISOString()
       };
 
       const finalMessages = [...updatedMessages, botMsg];
       setMessages(finalMessages);
 
-      console.log(`[FRONTEND] ✅ Received response`);
-      console.log(`[FRONTEND] Total messages now: ${finalMessages.length}`);
-
-      // Save guest messages
       if (!user) {
         localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(finalMessages));
-        console.log('[FRONTEND] 💾 Saved bot response to localStorage');
-      } else {
-        console.log('[FRONTEND] ✅ Message saved to database by backend');
       }
 
-      console.log('========================================\n');
-
     } catch (err) {
-      console.error('[FRONTEND] ❌ Error sending message:', err);
-      
-      const errorMsg = { 
-        sender: 'bot', 
+      console.error('Error sending message:', err);
+
+      const errorMsg = {
+        sender: 'bot',
         text: err.response?.data?.msg || 'Sorry, something went wrong. Please try again.',
         timestamp: new Date().toISOString(),
-        error: true 
+        error: true
       };
-      
+
       const finalMessages = [...updatedMessages, errorMsg];
       setMessages(finalMessages);
 
@@ -277,13 +455,11 @@ function Chatbot() {
         localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(finalMessages));
       }
 
-      setSnackbar({ 
-        open: true, 
-        message: 'Failed to send message. Please try again.', 
-        severity: 'error' 
+      setSnackbar({
+        open: true,
+        message: 'Failed to send message',
+        severity: 'error'
       });
-      
-      console.log('========================================\n');
     } finally {
       setTyping(false);
     }
@@ -301,82 +477,49 @@ function Chatbot() {
     handleSendMessage(action.value);
   };
 
-  /**
-   * Clear chat history
-   */
   const clearHistory = async () => {
-    console.log('[FRONTEND] 🗑️ Clearing chat history...');
-    
     try {
       if (user) {
-        // Authenticated: Delete from database
         await axios.delete('/api/chatbot/history', { withCredentials: true });
-        console.log('[FRONTEND] ✅ Deleted from database');
-        setSnackbar({ 
-          open: true, 
-          message: 'Chat history cleared from database', 
-          severity: 'success' 
-        });
+        setSnackbar({ open: true, message: 'Chat history cleared', severity: 'success' });
       } else {
-        // Guest: Clear localStorage
         localStorage.removeItem(GUEST_STORAGE_KEY);
-        console.log('[FRONTEND] ✅ Cleared from localStorage');
-        setSnackbar({ 
-          open: true, 
-          message: 'Chat cleared', 
-          severity: 'success' 
-        });
+        setSnackbar({ open: true, message: 'Chat cleared', severity: 'success' });
       }
-      
+
       setMessages([]);
       isInitialLoadRef.current = false;
     } catch (err) {
-      console.error('[FRONTEND] ❌ Error clearing:', err);
-      setSnackbar({ 
-        open: true, 
-        message: 'Failed to clear chat', 
-        severity: 'error' 
-      });
+      setSnackbar({ open: true, message: 'Failed to clear chat', severity: 'error' });
     }
   };
 
   const formatTime = (timestamp) => {
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    return new Date(timestamp).toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   return (
     <>
       {/* Floating Chat Button */}
       {!open && (
-        <Fade in={!open} timeout={300}>
-          <Tooltip title="Chat with us" placement="left">
-            <Badge
-              badgeContent={unreadCount}
-              color="error"
-              overlap="circular"
-              sx={{ position: 'fixed', bottom: 24, right: 24, zIndex: 1300 }}
-            >
-              <IconButton
-                onClick={toggleDrawer}
-                sx={{
-                  width: 64,
-                  height: 64,
-                  backgroundColor: 'primary.main',
-                  color: 'white',
-                  boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
-                  transition: 'all 0.3s ease',
-                  '&:hover': {
-                    backgroundColor: 'primary.dark',
-                    transform: 'scale(1.1)',
-                    boxShadow: '0 6px 25px rgba(0,0,0,0.2)',
-                  },
-                }}
+        <Fade in={!open} timeout={500}>
+          <Box sx={{ position: 'fixed', bottom: 24, right: 24, zIndex: 1300 }}>
+            <Tooltip title="Chat with AI Assistant" placement="left" arrow>
+              <Badge
+                badgeContent={unreadCount}
+                color="error"
+                overlap="circular"
+                max={99}
               >
-                <ChatIcon sx={{ fontSize: 32 }} />
-              </IconButton>
-            </Badge>
-          </Tooltip>
+                <FloatingButton onClick={toggleDrawer}>
+                  <ChatIcon sx={{ fontSize: 32 }} />
+                </FloatingButton>
+              </Badge>
+            </Tooltip>
+          </Box>
         </Fade>
       )}
 
@@ -389,94 +532,63 @@ function Chatbot() {
         ModalProps={{ keepMounted: true }}
         PaperProps={{
           sx: {
-            width: { xs: '100%', sm: '100%', md: '50%', lg: '40%', xl: '35%' },
+            width: { xs: '100%', sm: '100%', md: '450px', lg: '500px' },
             height: '100vh',
             maxHeight: '100vh',
-            borderRadius: 0,
             display: 'flex',
             flexDirection: 'column',
-            boxShadow: '-8px 0 32px rgba(0,0,0,0.12)',
+            boxShadow: '-12px 0 48px rgba(0,0,0,0.15)',
+            border: 'none',
           },
         }}
         sx={{ zIndex: 1400 }}
       >
         {/* Header */}
-        <AppBar
-          position="static"
-          elevation={0}
-          sx={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}
-        >
-          <Toolbar sx={{ justifyContent: 'space-between', py: 1 }}>
+        <GradientAppBar position="static" elevation={0}>
+          <Toolbar sx={{ justifyContent: 'space-between', py: 1.5 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <Avatar
-                alt="Help Assistant Bot"
+              <StyledAvatar
+                alt="AI Assistant"
                 src="/icon_chatbot.png"
-                sx={{
-                  width: 44,
-                  height: 44,
-                  bgcolor: 'rgba(255,255,255,0.2)',
-                  backdropFilter: 'blur(10px)',
-                }}
+                sender="bot"
               >
-                <BotIcon sx={{ color: 'white', fontSize: 24 }} />
-              </Avatar>
+                <BotIcon sx={{ fontSize: 22 }} />
+              </StyledAvatar>
               <Box>
-                <Typography variant="h6" sx={{ fontWeight: 600, color: 'white' }}>
-                  Help Assistant
+                <Typography variant="h6" sx={{ fontWeight: 700, color: 'white', letterSpacing: '0.3px' }}>
+                  AI Assistant
                 </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                  <Box
-                    sx={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: '50%',
-                      bgcolor: '#4ade80',
-                      animation: 'pulse 2s infinite',
-                      '@keyframes pulse': {
-                        '0%, 100%': { opacity: 1 },
-                        '50%': { opacity: 0.5 },
-                      },
-                    }}
-                  />
-                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.9)' }}>
-                    {user ? `💾 ${messages.length} saved in DB` : `💬 Guest (${messages.length})`}
+                <Stack direction="row" alignItems="center" gap={0.8}>
+                  <StatusBadge />
+                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.95)', fontWeight: 500 }}>
+                    {user ? `💾 ${messages.length} saved` : `💬 Guest (${messages.length})`}
                   </Typography>
-                </Box>
+                </Stack>
               </Box>
             </Box>
 
-            <Box sx={{ display: 'flex', gap: 0.5 }}>
-              <Tooltip title="Clear chat">
-                <IconButton onClick={clearHistory} size="small" sx={{ color: 'white' }}>
+            <Stack direction="row" spacing={0.5}>
+              <Tooltip title="Clear chat" arrow>
+                <HeaderButton onClick={clearHistory} size="small">
                   <ClearAllIcon />
-                </IconButton>
+                </HeaderButton>
               </Tooltip>
-              <Tooltip title="Close">
-                <IconButton onClick={toggleDrawer} size="small" sx={{ color: 'white' }}>
+              <Tooltip title="Close" arrow>
+                <HeaderButton onClick={toggleDrawer} size="small">
                   <CloseIcon />
-                </IconButton>
+                </HeaderButton>
               </Tooltip>
-            </Box>
+            </Stack>
           </Toolbar>
-        </AppBar>
+        </GradientAppBar>
 
         {/* Messages Container */}
-        <Box
-          sx={{
-            flexGrow: 1,
-            overflowY: 'auto',
-            bgcolor: '#f5f7fa',
-            backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.03), transparent 50%), radial-gradient(circle at 80% 80%, rgba(120, 119, 198, 0.03), transparent 50%)',
-            p: 2,
-            '&::-webkit-scrollbar': { width: '6px' },
-            '&::-webkit-scrollbar-thumb': { backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: '3px' },
-          }}
-        >
+        <MessagesContainer>
           {isLoadingHistory ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', flexDirection: 'column', gap: 2 }}>
-              <CircularProgress />
-              <Typography variant="body2" color="text.secondary">
-                {user ? 'Loading your conversation from database...' : 'Loading...'}
+            <Box display="flex" justifyContent="center" alignItems="center" height="100%" flexDirection="column" gap={2}>
+              <CircularProgress size={60} thickness={4} sx={{ color: '#667eea' }} />
+              <Typography variant="body1" color="text.secondary" fontWeight={600}>
+                {user ? 'Loading your conversation...' : 'Loading...'}
               </Typography>
             </Box>
           ) : (
@@ -484,46 +596,51 @@ function Chatbot() {
               {/* Welcome Message */}
               {messages.length === 0 && !typing && (
                 <Fade in timeout={800}>
-                  <Box sx={{ textAlign: 'center', mt: 4, mb: 3 }}>
-                    <Avatar
-                      alt="Help Assistant Bot"
-                      src="/icon_chatbot.png"
+                  <Box sx={{ textAlign: 'center', mt: 6, mb: 4, px: 2 }}>
+                    <Box
                       sx={{
-                        width: 80,
-                        height: 80,
-                        margin: '0 auto 16px',
-                        boxShadow: '0 4px 20px rgba(102,126,234,0.3)',
+                        width: 100,
+                        height: 100,
+                        margin: '0 auto 20px',
+                        borderRadius: '50%',
+                        background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.15) 100%)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        animation: `${float} 3s ease-in-out infinite`,
                       }}
                     >
-                      <BotIcon sx={{ fontSize: 48 }} />
-                    </Avatar>
-                    <Typography variant="h6" sx={{ fontWeight: 600, mb: 1, color: 'text.primary' }}>
-                      Welcome to Help Platform! 👋
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1, px: 2 }}>
-                      {user 
-                        ? '✅ Logged in! Your messages are saved in database permanently.' 
-                        : '👤 Guest mode: Messages saved in browser (not synced across devices).'}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3, px: 2 }}>
-                      I remember everything we discuss. Ask me anything!
+                      <AutoAwesomeIcon sx={{ fontSize: 50, color: '#667eea' }} />
+                    </Box>
+
+                    <Typography variant="h5" sx={{ fontWeight: 700, mb: 1.5, color: 'text.primary' }}>
+                      Welcome! 👋
                     </Typography>
 
-                    <Stack direction="row" spacing={1} justifyContent="center" flexWrap="wrap" sx={{ gap: 1 }}>
+                    <Typography variant="body1" color="text.secondary" sx={{ mb: 1, lineHeight: 1.7 }}>
+                      {user
+                        ? 'Logged in! Your messages are saved permanently.'
+                        : '👤 Guest mode: Messages saved locally.'}
+                    </Typography>
+
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
+                      I remember our conversations. Ask me anything!
+                    </Typography>
+
+                    <Divider sx={{ mb: 3 }} />
+
+                    <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2, fontWeight: 600 }}>
+                      Quick Actions
+                    </Typography>
+
+                    <Stack spacing={1.5}>
                       {quickActions.map((action, idx) => (
-                        <Chip
+                        <QuickActionChip
                           key={idx}
+                          icon={action.icon}
                           label={action.label}
                           onClick={() => handleQuickAction(action)}
-                          sx={{
-                            bgcolor: 'white',
-                            border: '1px solid',
-                            borderColor: 'primary.main',
-                            color: 'primary.main',
-                            fontWeight: 500,
-                            '&:hover': { bgcolor: 'primary.main', color: 'white' },
-                            transition: 'all 0.3s ease',
-                          }}
+                          sx={{ width: '100%', justifyContent: 'flex-start', height: 44, fontSize: '0.9rem' }}
                         />
                       ))}
                     </Stack>
@@ -543,35 +660,16 @@ function Chatbot() {
                       px: 0,
                     }}
                   >
-                    <Avatar
-                      sx={{
-                        bgcolor: msg.sender === 'user' ? 'primary.main' : 'grey.300',
-                        width: 36,
-                        height: 36,
-                        mx: 1,
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                      }}
-                    >
+                    <StyledAvatar sender={msg.sender} sx={{ mx: 1 }}>
                       {msg.sender === 'user' ? <UserIcon sx={{ fontSize: 20 }} /> : <BotIcon sx={{ fontSize: 20 }} />}
-                    </Avatar>
+                    </StyledAvatar>
 
                     <Box sx={{ maxWidth: '75%' }}>
-                      <Paper
-                        elevation={0}
-                        sx={{
-                          p: 1.5,
-                          bgcolor: msg.sender === 'user' ? 'primary.main' : 'white',
-                          color: msg.sender === 'user' ? 'white' : 'text.primary',
-                          borderRadius: msg.sender === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-                          boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
-                          border: msg.error ? '1px solid #ef4444' : 'none',
-                          wordWrap: 'break-word',
-                        }}
-                      >
-                        <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.6, fontSize: '0.95rem' }}>
+                      <MessageBubble elevation={0} sender={msg.sender}>
+                        <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
                           {msg.text}
                         </Typography>
-                      </Paper>
+                      </MessageBubble>
                       <Typography
                         variant="caption"
                         sx={{
@@ -582,6 +680,7 @@ function Chatbot() {
                           textAlign: msg.sender === 'user' ? 'right' : 'left',
                           color: 'text.secondary',
                           opacity: 0.7,
+                          fontWeight: 500,
                         }}
                       >
                         {formatTime(msg.timestamp)}
@@ -595,18 +694,10 @@ function Chatbot() {
               {typing && (
                 <Fade in timeout={300}>
                   <ListItem sx={{ display: 'flex', alignItems: 'flex-start', mb: 2, px: 0 }}>
-                    <Avatar sx={{ bgcolor: 'grey.300', width: 36, height: 36, mx: 1 }}>
+                    <StyledAvatar sender="bot" sx={{ mx: 1 }}>
                       <BotIcon sx={{ fontSize: 20 }} />
-                    </Avatar>
-                    <Paper
-                      elevation={0}
-                      sx={{
-                        p: 1.5,
-                        bgcolor: 'white',
-                        borderRadius: '18px 18px 18px 4px',
-                        boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
-                      }}
-                    >
+                    </StyledAvatar>
+                    <MessageBubble elevation={0} sender="bot">
                       <Stack direction="row" spacing={0.5}>
                         {[0, 0.2, 0.4].map((delay, i) => (
                           <Box
@@ -615,18 +706,14 @@ function Chatbot() {
                               width: 8,
                               height: 8,
                               borderRadius: '50%',
-                              bgcolor: 'grey.400',
-                              animation: 'bounce 1.4s infinite ease-in-out',
+                              bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.5)' : 'grey.400',
+                              animation: `${bounce} 1.4s infinite ease-in-out`,
                               animationDelay: `${delay}s`,
-                              '@keyframes bounce': {
-                                '0%, 80%, 100%': { transform: 'scale(0)' },
-                                '40%': { transform: 'scale(1)' },
-                              },
                             }}
                           />
                         ))}
                       </Stack>
-                    </Paper>
+                    </MessageBubble>
                   </ListItem>
                 </Fade>
               )}
@@ -634,20 +721,12 @@ function Chatbot() {
               <div ref={messagesEndRef} />
             </List>
           )}
-        </Box>
+        </MessagesContainer>
 
         {/* Input Area */}
-        <Box
-          sx={{
-            p: 2,
-            bgcolor: 'white',
-            borderTop: '1px solid',
-            borderColor: 'divider',
-            boxShadow: '0 -2px 10px rgba(0,0,0,0.05)',
-          }}
-        >
+        <InputContainer>
           <Stack direction="row" spacing={1} alignItems="flex-end">
-            <TextField
+            <StyledTextField
               inputRef={inputRef}
               placeholder="Type your message..."
               multiline
@@ -658,42 +737,40 @@ function Chatbot() {
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={handleKeyPress}
               disabled={typing || isLoadingHistory}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: '24px',
-                  bgcolor: '#f5f7fa',
-                  '& fieldset': { borderColor: 'transparent' },
-                  '&:hover fieldset': { borderColor: 'primary.main' },
-                  '&.Mui-focused fieldset': { borderColor: 'primary.main', borderWidth: '2px' },
-                },
-              }}
             />
-            <IconButton
-              onClick={handleSendMessage}
-              disabled={!input.trim() || typing || isLoadingHistory}
-              sx={{
-                bgcolor: input.trim() && !typing && !isLoadingHistory ? 'primary.main' : 'grey.300',
-                color: 'white',
-                width: 48,
-                height: 48,
-                transition: 'all 0.3s ease',
-                '&:hover': {
-                  bgcolor: input.trim() && !typing && !isLoadingHistory ? 'primary.dark' : 'grey.400',
-                  transform: input.trim() && !typing && !isLoadingHistory ? 'scale(1.1)' : 'none',
-                },
-                '&:disabled': { bgcolor: 'grey.300', color: 'grey.500' },
-              }}
-            >
-              {typing ? <CircularProgress size={24} sx={{ color: 'white' }} /> : <SendIcon />}
-            </IconButton>
+
+            <Tooltip title="Send message" arrow>
+              <span>
+                <SendButton
+                  onClick={() => handleSendMessage()}
+                  disabled={!input.trim() || typing || isLoadingHistory}
+                >
+                  {typing ? (
+                    <CircularProgress size={24} sx={{ color: 'inherit' }} />
+                  ) : (
+                    <SendIcon />
+                  )}
+                </SendButton>
+              </span>
+            </Tooltip>
           </Stack>
 
-          <Typography variant="caption" sx={{ display: 'block', textAlign: 'center', mt: 1, color: 'text.secondary', opacity: 0.6 }}>
-            {user 
-              ? '💾 All messages auto-saved to database • Context-aware AI' 
-              : '💬 Guest mode • Saved in browser only • Login to save permanently'}
+          <Typography
+            variant="caption"
+            sx={{
+              display: 'block',
+              textAlign: 'center',
+              mt: 1.5,
+              color: 'text.secondary',
+              fontWeight: 500,
+              opacity: 0.7,
+            }}
+          >
+            {user
+              ? '💾 Auto-saved • Context-aware AI'
+              : '💬 Guest mode • Login to save permanently'}
           </Typography>
-        </Box>
+        </InputContainer>
       </Drawer>
 
       {/* Snackbar */}
@@ -707,7 +784,7 @@ function Chatbot() {
           onClose={() => setSnackbar({ ...snackbar, open: false })}
           severity={snackbar.severity}
           variant="filled"
-          sx={{ width: '100%', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}
+          sx={{ borderRadius: 2, boxShadow: '0 4px 20px rgba(0,0,0,0.2)' }}
         >
           {snackbar.message}
         </Alert>

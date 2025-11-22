@@ -10,9 +10,11 @@ const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken');
 const cookie = require('cookie'); // Ensure 'cookie' is required
 
-const openaiRisksRoute = require('./Routes/openaiRisks');
+const openaiRisksRoute = require('./Routes/gemini');
 const conversationsRoute = require('./Routes/conversations');
 const chatbotRoute = require('./Routes/chatbot'); // Import chatbot route
+const geminiRoutes = require('./Routes/gemini'); // ✅ NEW: Import Gemini routes
+const statsRoutes = require('./Routes/stats'); // Import stats routes
 
 dotenv.config();
 
@@ -52,7 +54,8 @@ app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/openai', openaiRisksRoute);
 app.use('/api/conversations', conversationsRoute);
 app.use('/api/chatbot', chatbotRoute);
-
+app.use('/api/stats', statsRoutes); // Use stats routes
+app.use('/api/gemini', geminiRoutes); // ✅ NEW: Register Gemini routes
 // Create HTTP server and attach Socket.IO
 const server = http.createServer(app);
 const io = socketIo(server, {
