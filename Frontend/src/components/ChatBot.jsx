@@ -374,10 +374,13 @@ function Chatbot() {
     scrollToBottom();
   }, [messages, typing]);
 
-  // Auto-focus
+  // Auto-focus and reload history when opening
   useEffect(() => {
     if (open && inputRef.current) {
       setTimeout(() => inputRef.current.focus(), 100);
+      // Reset flag to allow history reload when reopening chatbot
+      isInitialLoadRef.current = false;
+      loadChatHistory();
     }
   }, [open]);
 

@@ -72,7 +72,6 @@ Output Format:
 `;
 
 async function detectIntent(message, history = []) {
-  // Manual overrides for common phrases
   const lowerMsg = message.toLowerCase();
   if (lowerMsg.includes('create request') || lowerMsg.includes('post request') || lowerMsg === 'i need help') {
     console.log('[CHATBOT] Manual Override: CREATE_REQUEST');
@@ -230,7 +229,6 @@ async function handleCreateRequest(userId, message, sessionState, chatDoc) {
 }
 
 async function handleSearchRequests(message) {
-  // Case-insensitive replacement
   const keywords = message.replace(/find/gi, '').replace(/search/gi, '').replace(/requests/gi, '').trim();
 
   console.log('[CHATBOT] Search Keywords:', keywords);
@@ -263,7 +261,6 @@ async function handleSearchRequests(message) {
 }
 
 async function handleMyBids(userId) {
-  // Use helpRequestId instead of requestId
   const bids = await Bid.find({ bidderId: userId }).populate('helpRequestId', 'title status');
 
   if (bids.length === 0) {
@@ -304,7 +301,10 @@ router.post('/', async (req, res) => {
     // 1. Check if we are in an active flow
     if (sessionState.intent === INTENTS.CREATE_REQUEST && sessionState.step) {
       const response = await handleCreateRequest(userId, message, sessionState, chat);
-      if (userId) await chat.addMessages(message, response.text, response.metadata);
+      // Save messages - now for CREATE_REQUEST flow too!
+      if (userId && chat) {
+        await chat.addMessages(message, response.text, response.metadata);
+      }
       return res.json({ message: response.text, metadata: response.metadata });
     }
 
@@ -356,7 +356,7 @@ router.post('/', async (req, res) => {
         break;
     }
 
-    // Save to DB
+    // Save to DB - centralized message saving for ALL intents
     if (userId && chat) {
       await chat.addMessages(message, response.text, response.metadata);
     }
