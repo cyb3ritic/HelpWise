@@ -24,9 +24,18 @@ const ChatSchema = new mongoose.Schema({
       timestamp: {
         type: Date,
         default: Date.now
+      },
+      metadata: {
+        type: mongoose.Schema.Types.Mixed, // For quick replies, actions, etc.
+        default: null
       }
     }
   ],
+  sessionState: {
+    intent: { type: String, default: null },
+    step: { type: String, default: null },
+    slots: { type: mongoose.Schema.Types.Mixed, default: {} }
+  },
   lastActivity: {
     type: Date,
     default: Date.now,
@@ -44,7 +53,7 @@ const ChatSchema = new mongoose.Schema({
 ChatSchema.index({ user: 1, lastActivity: -1 });
 
 // Pre-save middleware
-ChatSchema.pre('save', function(next) {
+ChatSchema.pre('save', function (next) {
   if (this.isModified('messages')) {
     this.messageCount = this.messages.length;
     this.lastActivity = new Date();
@@ -53,27 +62,28 @@ ChatSchema.pre('save', function(next) {
 });
 
 // Method to add messages
-ChatSchema.methods.addMessages = function(userMessage, botMessage) {
+ChatSchema.methods.addMessages = function (userMessage, botMessage, metadata = null) {
   this.messages.push({
     sender: 'user',
     text: userMessage,
     timestamp: new Date()
   });
-  
+
   this.messages.push({
     sender: 'bot',
     text: botMessage,
-    timestamp: new Date()
+    timestamp: new Date(),
+    metadata: metadata
   });
-  
+
   // Keep last 200 messages to prevent document bloat
   if (this.messages.length > 200) {
     this.messages = this.messages.slice(-200);
   }
-  
+
   this.lastActivity = new Date();
   this.messageCount = this.messages.length;
-  
+
   return this.save();
 };
 

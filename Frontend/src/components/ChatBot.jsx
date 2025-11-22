@@ -24,6 +24,11 @@ import {
   Toolbar,
   Badge,
   Divider,
+  Card,
+  CardContent,
+  CardActions,
+  Button,
+  Link
 } from '@mui/material';
 import {
   Chat as ChatIcon,
@@ -36,10 +41,15 @@ import {
   HelpOutline as HelpOutlineIcon,
   BugReport as BugReportIcon,
   SupportAgent as SupportAgentIcon,
+  CheckCircle as CheckCircleIcon,
+  Cancel as CancelIcon,
+  Work as WorkIcon,
+  Gavel as GavelIcon
 } from '@mui/icons-material';
 import { styled, alpha, keyframes } from '@mui/material/styles';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const GUEST_STORAGE_KEY = 'chatbot_guest_messages';
 
@@ -257,10 +267,71 @@ const HeaderButton = styled(IconButton)(({ theme }) => ({
   },
 }));
 
+const RequestCard = ({ request, onClick }) => (
+  <Card
+    sx={{
+      minWidth: 250,
+      mb: 1,
+      bgcolor: 'background.paper',
+      boxShadow: 2,
+      cursor: 'pointer',
+      transition: 'transform 0.2s',
+      '&:hover': { transform: 'scale(1.02)' }
+    }}
+    onClick={() => onClick(request._id)}
+  >
+    <CardContent sx={{ pb: 1 }}>
+      <Typography variant="subtitle1" fontWeight="bold" noWrap>
+        {request.title}
+      </Typography>
+      <Typography variant="body2" color="text.secondary" noWrap>
+        {request.location} • {request.category}
+      </Typography>
+      <Chip
+        label={request.status}
+        size="small"
+        color={request.status === 'Open' ? 'success' : 'default'}
+        sx={{ mt: 1, height: 20, fontSize: '0.7rem' }}
+      />
+    </CardContent>
+  </Card>
+);
+
+const BidCard = ({ bid, onClick }) => (
+  <Card
+    sx={{
+      minWidth: 250,
+      mb: 1,
+      bgcolor: 'background.paper',
+      boxShadow: 2,
+      cursor: 'pointer',
+      transition: 'transform 0.2s',
+      '&:hover': { transform: 'scale(1.02)' }
+    }}
+    onClick={() => onClick(bid.helpRequestId?._id)}
+  >
+    <CardContent sx={{ pb: 1 }}>
+      <Typography variant="subtitle1" fontWeight="bold" noWrap>
+        {bid.helpRequestId?.title || 'Unknown Request'}
+      </Typography>
+      <Typography variant="body2" color="text.secondary">
+        Bid Amount: ${bid.bidAmount}
+      </Typography>
+      <Chip
+        label={bid.status}
+        size="small"
+        color={bid.status === 'Accepted' ? 'success' : 'warning'}
+        sx={{ mt: 1, height: 20, fontSize: '0.7rem' }}
+      />
+    </CardContent>
+  </Card>
+);
+
 function Chatbot() {
   const { user } = useContext(AuthContext);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const navigate = useNavigate();
 
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -276,19 +347,19 @@ function Chatbot() {
 
   const quickActions = [
     {
-      label: 'Get Help',
-      value: 'I need help with the platform',
-      icon: <HelpOutlineIcon />
+      label: 'Find Requests',
+      value: 'Find requests nearby',
+      icon: <WorkIcon />
     },
     {
-      label: 'Report Issue',
-      value: 'I want to report an issue',
-      icon: <BugReportIcon />
+      label: 'Create Request',
+      value: 'I need help with something',
+      icon: <AutoAwesomeIcon />
     },
     {
-      label: 'Contact Support',
-      value: 'How can I contact support?',
-      icon: <SupportAgentIcon />
+      label: 'My Bids',
+      value: 'Show my bids',
+      icon: <GavelIcon />
     },
   ];
 
@@ -428,6 +499,7 @@ function Chatbot() {
       const botMsg = {
         sender: 'bot',
         text: res.data.message,
+        metadata: res.data.metadata,
         timestamp: new Date().toISOString()
       };
 
@@ -472,9 +544,16 @@ function Chatbot() {
     }
   };
 
-  const handleQuickAction = (action) => {
-    setInput(action.value);
-    handleSendMessage(action.value);
+  const handleQuickAction = (value) => {
+    setInput(value);
+    handleSendMessage(value);
+  };
+
+  const handleCardClick = (requestId) => {
+    if (requestId) {
+      if (isMobile) setOpen(false);
+      navigate(`/requests/${requestId}`);
+    }
   };
 
   const clearHistory = async () => {
@@ -499,6 +578,70 @@ function Chatbot() {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  // --- Render Logic for Metadata ---
+  const renderMetadata = (metadata) => {
+    if (!metadata) return null;
+
+    switch (metadata.type) {
+      case 'REQUEST_LIST':
+        return (
+          <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
+            {metadata.data.map((req) => (
+              <RequestCard key={req._id} request={req} onClick={handleCardClick} />
+            ))}
+          </Box>
+        );
+
+      case 'BID_LIST':
+        return (
+          <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
+            {metadata.data.map((bid) => (
+              <BidCard key={bid._id} bid={bid} onClick={handleCardClick} />
+            ))}
+          </Box>
+        );
+
+      case 'CONFIRMATION':
+        return (
+          <Box sx={{ mt: 1 }}>
+            <Stack direction="row" spacing={1}>
+              {metadata.quickReplies.map((reply, idx) => (
+                <Button
+                  key={idx}
+                  variant={reply.value === 'yes' ? 'contained' : 'outlined'}
+                  color={reply.value === 'yes' ? 'primary' : 'error'}
+                  size="small"
+                  onClick={() => handleQuickAction(reply.value)}
+                >
+                  {reply.label}
+                </Button>
+              ))}
+            </Stack>
+          </Box>
+        );
+
+      default:
+        if (metadata.quickReplies) {
+          return (
+            <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+              {metadata.quickReplies.map((reply, idx) => (
+                <Chip
+                  key={idx}
+                  label={reply.label}
+                  onClick={() => handleQuickAction(reply.value)}
+                  variant="outlined"
+                  color="primary"
+                  size="small"
+                  sx={{ fontSize: '0.75rem' }}
+                />
+              ))}
+            </Box>
+          );
+        }
+        return null;
+    }
   };
 
   return (
@@ -639,7 +782,7 @@ function Chatbot() {
                           key={idx}
                           icon={action.icon}
                           label={action.label}
-                          onClick={() => handleQuickAction(action)}
+                          onClick={() => handleQuickAction(action.value)}
                           sx={{ width: '100%', justifyContent: 'flex-start', height: 44, fontSize: '0.9rem' }}
                         />
                       ))}
@@ -669,6 +812,8 @@ function Chatbot() {
                         <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
                           {msg.text}
                         </Typography>
+                        {/* Render Metadata (Cards, Quick Replies) */}
+                        {msg.sender === 'bot' && renderMetadata(msg.metadata)}
                       </MessageBubble>
                       <Typography
                         variant="caption"
