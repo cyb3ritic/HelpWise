@@ -5,12 +5,14 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { check, validationResult } = require('express-validator');
 const cookieParser = require('cookie-parser');
+const crypto = require('crypto');
 
 const User = require('../models/User');
 const TypeOfHelp = require('../models/TypeOfHelp');
 const Bid = require('../models/Bid');
 const auth = require('../middleware/auth');
 const nodemailer = require('nodemailer');
+const axios = require('axios');
 require('dotenv').config();
 
 // Middleware to parse cookies
@@ -408,6 +410,260 @@ router.post('/resend-otp', [check('email', 'Please include a valid email').isEma
   } catch (err) {
     console.error('Resend OTP Error:', err.message);
     res.status(500).send('Server error');
+  }
+});
+
+// @route   POST /api/users/enhance-profile
+// @desc    Enhance user profile from Twitter/GitHub with profile pictures
+// @access  Private
+router.post('/enhance-profile', auth, async (req, res) => {
+  try {
+    const { twitterUsername, githubUrl } = req.body;
+    const userId = req.user.id;
+
+    console.log('Enhancement request:', { twitterUsername, githubUrl, userId });
+
+    let enhancedData = {
+      github: null,
+      twitter: null,
+      lastUpdated: new Date(),
+    };
+
+    let profilePicture = null;
+    let profilePictureSource = null;
+
+    // ========== GITHUB DATA EXTRACTION ==========
+    if (githubUrl) {
+      const username = githubUrl.split('github.com/')[1]?.split('/')[0]?.trim();
+      
+      if (username) {
+        try {
+          console.log(`Fetching GitHub data for: ${username}`);
+
+          const githubUserRes = await axios.get(`https://api.github.com/users/${username}`, {
+            headers: {
+              'Accept': 'application/vnd.github.v3+json',
+              'User-Agent': 'HelpWise-Platform',
+            }
+          });
+
+          const githubReposRes = await axios.get(
+            `https://api.github.com/users/${username}/repos?sort=updated&per_page=30`,
+            {
+              headers: {
+                'Accept': 'application/vnd.github.v3+json',
+                'User-Agent': 'HelpWise-Platform',
+              }
+            }
+          );
+
+          const languages = new Set();
+          const topSkills = new Set();
+
+          githubReposRes.data.forEach(repo => {
+            if (repo.language) {
+              languages.add(repo.language);
+              topSkills.add(repo.language);
+            }
+            if (repo.topics && repo.topics.length > 0) {
+              repo.topics.forEach(topic => topSkills.add(topic));
+            }
+          });
+
+          const topRepos = githubReposRes.data
+            .sort((a, b) => b.stargazers_count - a.stargazers_count)
+            .slice(0, 10)
+            .map(repo => ({
+              name: repo.name,
+              description: repo.description || 'No description',
+              language: repo.language,
+              stars: repo.stargazers_count,
+              forks: repo.forks_count,
+              url: repo.html_url,
+              topics: repo.topics || [],
+            }));
+
+          enhancedData.github = {
+            username: githubUserRes.data.login,
+            bio: githubUserRes.data.bio || '',
+            company: githubUserRes.data.company || '',
+            location: githubUserRes.data.location || '',
+            blog: githubUserRes.data.blog || '',
+            followers: githubUserRes.data.followers || 0,
+            following: githubUserRes.data.following || 0,
+            publicRepos: githubUserRes.data.public_repos || 0,
+            createdAt: githubUserRes.data.created_at,
+            updatedAt: githubUserRes.data.updated_at,
+            avatarUrl: githubUserRes.data.avatar_url, // ← SAVE AVATAR URL
+            repositories: topRepos,
+            languages: Array.from(languages),
+            topSkills: Array.from(topSkills).slice(0, 15),
+          };
+
+          // Set profile picture from GitHub
+          if (!profilePicture) {
+            profilePicture = githubUserRes.data.avatar_url;
+            profilePictureSource = 'github';
+          }
+
+          console.log(`✅ GitHub data fetched successfully for ${username}`);
+
+        } catch (error) {
+          console.error('GitHub fetch error:', error.response?.data || error.message);
+          return res.status(400).json({ 
+            msg: 'Failed to fetch GitHub data. Please check the URL and try again.',
+            error: error.response?.data?.message || error.message
+          });
+        }
+      } else {
+        return res.status(400).json({ msg: 'Invalid GitHub URL format' });
+      }
+    }
+
+    // ========== TWITTER DATA EXTRACTION ==========
+    if (twitterUsername) {
+      try {
+        const cleanUsername = twitterUsername.replace('@', '').trim();
+        console.log(`Fetching Twitter data for: ${cleanUsername}`);
+
+        if (process.env.TWITTER_BEARER_TOKEN) {
+          const twitterRes = await axios.get(
+            `https://api.twitter.com/2/users/by/username/${cleanUsername}`,
+            {
+              headers: {
+                'Authorization': `Bearer ${process.env.TWITTER_BEARER_TOKEN}`,
+              },
+              params: {
+                'user.fields': 'created_at,description,location,name,profile_image_url,public_metrics,url,verified,username'
+              }
+            }
+          );
+
+          const userData = twitterRes.data.data;
+
+          enhancedData.twitter = {
+            username: userData.username,
+            name: userData.name,
+            description: userData.description || '',
+            location: userData.location || '',
+            website: userData.url || '',
+            followersCount: userData.public_metrics?.followers_count || 0,
+            followingCount: userData.public_metrics?.following_count || 0,
+            tweetCount: userData.public_metrics?.tweet_count || 0,
+            verified: userData.verified || false,
+            profileImageUrl: userData.profile_image_url || '', // ← SAVE PROFILE IMAGE URL
+            createdAt: userData.created_at,
+          };
+
+          // Set profile picture from Twitter (prefer higher resolution)
+          if (!profilePicture || profilePictureSource === 'twitter') {
+            // Replace _normal with _400x400 for higher resolution
+            const highResImage = userData.profile_image_url?.replace('_normal', '_400x400');
+            profilePicture = highResImage;
+            profilePictureSource = 'twitter';
+          }
+
+          console.log(`✅ Twitter data fetched successfully for @${cleanUsername}`);
+        } else {
+          enhancedData.twitter = {
+            username: cleanUsername,
+            message: 'Limited data available. Add TWITTER_BEARER_TOKEN to .env for full profile enhancement.',
+          };
+          console.log('⚠️ Twitter Bearer Token not configured');
+        }
+
+      } catch (error) {
+        console.error('Twitter fetch error:', error.response?.data || error.message);
+        
+        enhancedData.twitter = {
+          username: twitterUsername.replace('@', ''),
+          error: 'Failed to fetch Twitter data. Please verify username.',
+        };
+      }
+    }
+
+    // ========== FALLBACK TO GRAVATAR ==========
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ msg: 'User not found' });
+    }
+
+    // If no profile picture from GitHub/Twitter, use Gravatar
+    if (!profilePicture && user.email) {
+      const emailHash = crypto.createHash('md5')
+        .update(user.email.toLowerCase().trim())
+        .digest('hex');
+      profilePicture = `https://www.gravatar.com/avatar/${emailHash}?s=400&d=identicon`;
+      profilePictureSource = 'gravatar';
+    }
+
+    // ========== UPDATE USER PROFILE ==========
+    if (twitterUsername) user.twitterUsername = twitterUsername.replace('@', '');
+    if (githubUrl) user.githubUrl = githubUrl;
+    user.enhancedProfile = enhancedData;
+    
+    // ← SAVE PROFILE PICTURE AND SOURCE
+    if (profilePicture) {
+      user.profilePicture = profilePicture;
+      user.profilePictureSource = profilePictureSource;
+    }
+
+    // Update bio and location from GitHub or Twitter
+    if (enhancedData.github) {
+      if (!user.bio && enhancedData.github.bio) {
+        user.bio = enhancedData.github.bio;
+      }
+      if (!user.location && enhancedData.github.location) {
+        user.location = enhancedData.github.location;
+      }
+      if (!user.website && enhancedData.github.blog) {
+        user.website = enhancedData.github.blog;
+      }
+    }
+
+    if (enhancedData.twitter && !enhancedData.twitter.error) {
+      if (!user.bio && enhancedData.twitter.description) {
+        user.bio = enhancedData.twitter.description;
+      }
+      if (!user.location && enhancedData.twitter.location) {
+        user.location = enhancedData.twitter.location;
+      }
+      if (!user.website && enhancedData.twitter.website) {
+        user.website = enhancedData.twitter.website;
+      }
+    }
+
+    await user.save();
+
+    console.log('✅ Profile enhanced successfully');
+
+    res.json({ 
+      msg: 'Profile enhanced successfully', 
+      data: {
+        bio: user.bio,
+        location: user.location,
+        website: user.website,
+        profilePicture: user.profilePicture, // ← RETURN PROFILE PICTURE
+        profilePictureSource: user.profilePictureSource,
+        githubData: enhancedData.github ? {
+          repos: enhancedData.github.publicRepos,
+          followers: enhancedData.github.followers,
+          languages: enhancedData.github.languages.length,
+        } : null,
+        twitterData: enhancedData.twitter && !enhancedData.twitter.error ? {
+          followers: enhancedData.twitter.followersCount,
+          tweets: enhancedData.twitter.tweetCount,
+          verified: enhancedData.twitter.verified,
+        } : null,
+      }
+    });
+
+  } catch (error) {
+    console.error('Profile enhancement error:', error);
+    res.status(500).json({ 
+      msg: 'Server error during profile enhancement',
+      error: error.message 
+    });
   }
 });
 

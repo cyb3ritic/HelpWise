@@ -134,7 +134,7 @@ const MessagesContainer = styled(Box)(({ theme }) => ({
 
 const MessageBubble = styled(Paper)(({ theme, sender }) => ({
   padding: theme.spacing(1.5, 2),
-  maxWidth: '75%',
+  // maxWidth: '75%',
   backgroundColor: sender === 'user'
     ? '#667eea'
     : theme.palette.mode === 'dark'
@@ -545,7 +545,7 @@ function Chatbot() {
       >
         {/* Header */}
         <GradientAppBar position="static" elevation={0}>
-          <Toolbar sx={{ justifyContent: 'space-between', py: 1.5 }}>
+          <Toolbar sx={{ justifyContent: 'space-between', py: 0.9 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
               <StyledAvatar
                 alt="AI Assistant"

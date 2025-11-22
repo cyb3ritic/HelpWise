@@ -263,7 +263,7 @@ function Conversations() {
     await fetchConversations();
     setSnackbar({
       open: true,
-      message: '✅ Conversations refreshed!',
+      message: 'Conversations refreshed!',
       severity: 'success',
     });
   };
@@ -451,7 +451,7 @@ function Conversations() {
                   <ListItemAvatar sx={{ minWidth: 72 }}>
                     <Badge
                       overlap="circular"
-                      anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                      anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
                       badgeContent={
                         isOnline && (
                           <Box
