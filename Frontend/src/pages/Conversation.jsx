@@ -109,7 +109,7 @@ const bounce = keyframes`
 const ChatContainer = styled(Card)(({ theme }) => ({
   display: 'flex',
   flexDirection: 'column',
-  height: '88vh',
+  height: 'calc(100vh - 140px)',
   background: theme.palette.mode === 'dark'
     ? 'linear-gradient(135deg, #1e1e2e 0%, #2d2d44 100%)'
     : 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
@@ -179,7 +179,7 @@ const MessageContainer = styled(Box)(({ isSender }) => ({
   flexDirection: 'column',
   alignItems: isSender ? 'flex-end' : 'flex-start',
   width: '100%',
-  animation: isSender 
+  animation: isSender
     ? `${slideInRight} 0.4s cubic-bezier(0.4, 0, 0.2, 1)`
     : `${slideInLeft} 0.4s cubic-bezier(0.4, 0, 0.2, 1)`,
 }));
@@ -187,7 +187,7 @@ const MessageContainer = styled(Box)(({ isSender }) => ({
 const MessageBubble = styled(Box)(({ theme, isSender }) => ({
   maxWidth: '70%',
   padding: theme.spacing(1.5, 2.5),
-  borderRadius: isSender 
+  borderRadius: isSender
     ? '20px 20px 4px 20px'
     : '20px 20px 20px 4px',
   background: isSender
@@ -195,8 +195,8 @@ const MessageBubble = styled(Box)(({ theme, isSender }) => ({
     : theme.palette.mode === 'dark'
       ? alpha(theme.palette.background.paper, 0.8)
       : '#ffffff',
-  color: isSender 
-    ? theme.palette.primary.contrastText 
+  color: isSender
+    ? theme.palette.primary.contrastText
     : theme.palette.text.primary,
   boxShadow: isSender
     ? `0 4px 20px ${alpha(theme.palette.primary.main, 0.4)}`
@@ -318,8 +318,8 @@ const AnimatedAvatar = styled(Avatar)(({ theme, online }) => ({
   width: 46,
   height: 46,
   border: `3px solid ${online ? '#4caf50' : alpha(theme.palette.divider, 0.3)}`,
-  boxShadow: online 
-    ? `0 0 0 4px ${alpha('#4caf50', 0.2)}` 
+  boxShadow: online
+    ? `0 0 0 4px ${alpha('#4caf50', 0.2)}`
     : '0 2px 8px rgba(0, 0, 0, 0.15)',
   animation: online ? `${pulse} 2s infinite` : 'none',
   transition: 'all 0.3s ease',
@@ -377,7 +377,7 @@ function Conversation() {
   const [typing, setTyping] = useState(false);
   const [otherUserTyping, setOtherUserTyping] = useState(false);
   const [sendingMessage, setSendingMessage] = useState(false);
-  
+
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
@@ -481,8 +481,8 @@ function Conversation() {
 
   const handleClearChat = async () => {
     try {
-      await axios.delete(`/api/conversations/${conversationId}/messages`, { 
-        withCredentials: true 
+      await axios.delete(`/api/conversations/${conversationId}/messages`, {
+        withCredentials: true
       });
       setClearDialogOpen(false);
       setAnchorEl(null);
@@ -523,9 +523,9 @@ function Conversation() {
         <Fade in>
           <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>{error}</Alert>
         </Fade>
-        <Button 
-          variant="contained" 
-          startIcon={<ArrowBackIcon />} 
+        <Button
+          variant="contained"
+          startIcon={<ArrowBackIcon />}
           onClick={() => navigate('/conversations')}
           sx={{ borderRadius: 2 }}
         >
@@ -546,12 +546,12 @@ function Conversation() {
           {/* Glass Header */}
           <GlassHeader>
             <Tooltip title="Back to conversations" arrow>
-              <IconButton 
-                onClick={() => navigate('/conversations')} 
-                sx={{ 
+              <IconButton
+                onClick={() => navigate('/conversations')}
+                sx={{
                   mr: 2,
                   transition: 'all 0.3s ease',
-                  '&:hover': { 
+                  '&:hover': {
                     transform: 'translateX(-4px)',
                   }
                 }}
@@ -559,8 +559,8 @@ function Conversation() {
                 <ArrowBackIcon />
               </IconButton>
             </Tooltip>
-            
-            <AnimatedAvatar 
+
+            <AnimatedAvatar
               src={otherParticipant?.avatar}
               online={true}
             >
@@ -571,9 +571,9 @@ function Conversation() {
               <Typography variant="h6" sx={{ fontWeight: 700, letterSpacing: '0.3px' }}>
                 {otherParticipant?.firstName} {otherParticipant?.lastName}
               </Typography>
-              <Typography 
-                variant="caption" 
-                sx={{ 
+              <Typography
+                variant="caption"
+                sx={{
                   opacity: 0.8,
                   fontWeight: 500,
                   color: otherUserTyping ? theme.palette.success.main : 'inherit'
@@ -599,7 +599,7 @@ function Conversation() {
             </Box>
 
             <Tooltip title="More options" arrow>
-              <IconButton 
+              <IconButton
                 onClick={(e) => setAnchorEl(e.currentTarget)}
                 sx={{
                   transition: 'all 0.3s ease',
@@ -612,9 +612,9 @@ function Conversation() {
               </IconButton>
             </Tooltip>
 
-            <Menu 
-              anchorEl={anchorEl} 
-              open={openMenu} 
+            <Menu
+              anchorEl={anchorEl}
+              open={openMenu}
               onClose={() => setAnchorEl(null)}
               PaperProps={{
                 sx: {
@@ -624,10 +624,10 @@ function Conversation() {
                 }
               }}
             >
-              <MenuItem 
-                onClick={() => { 
-                  setAnchorEl(null); 
-                  setClearDialogOpen(true); 
+              <MenuItem
+                onClick={() => {
+                  setAnchorEl(null);
+                  setClearDialogOpen(true);
                 }}
                 sx={{ borderRadius: 1, mx: 0.5 }}
               >
@@ -684,11 +684,11 @@ function Conversation() {
                       return (
                         <MessageContainer key={msg._id} isSender={isSender}>
                           {!isSender && (
-                            <Typography 
-                              variant="caption" 
-                              sx={{ 
-                                mb: 0.5, 
-                                ml: 1, 
+                            <Typography
+                              variant="caption"
+                              sx={{
+                                mb: 0.5,
+                                ml: 1,
                                 fontWeight: 600,
                                 color: theme.palette.text.secondary
                               }}
@@ -697,9 +697,9 @@ function Conversation() {
                             </Typography>
                           )}
                           <MessageBubble isSender={isSender}>
-                            <Typography 
-                              variant="body1" 
-                              sx={{ 
+                            <Typography
+                              variant="body1"
+                              sx={{
                                 whiteSpace: 'pre-wrap',
                                 lineHeight: 1.6,
                                 mb: 0.5,
@@ -707,10 +707,10 @@ function Conversation() {
                             >
                               {msg.content}
                             </Typography>
-                            <Box 
-                              display="flex" 
-                              alignItems="center" 
-                              justifyContent="flex-end" 
+                            <Box
+                              display="flex"
+                              alignItems="center"
+                              justifyContent="flex-end"
                               gap={0.5}
                             >
                               <Typography
@@ -724,12 +724,12 @@ function Conversation() {
                                 {moment(msg.createdAt).format('h:mm A')}
                               </Typography>
                               {isSender && (
-                                <DoneAllIcon 
-                                  sx={{ 
+                                <DoneAllIcon
+                                  sx={{
                                     fontSize: '1rem',
                                     opacity: 0.8,
                                     color: '#4fc3f7',
-                                  }} 
+                                  }}
                                 />
                               )}
                             </Box>
@@ -743,8 +743,8 @@ function Conversation() {
                 {/* Typing Indicator */}
                 {otherUserTyping && (
                   <MessageContainer isSender={false}>
-                    <Typography 
-                      variant="caption" 
+                    <Typography
+                      variant="caption"
                       sx={{ mb: 0.5, ml: 1, fontWeight: 600, color: 'text.secondary' }}
                     >
                       {otherParticipant?.firstName}
@@ -786,7 +786,7 @@ function Conversation() {
                 )
               }
             />
-            
+
             <Tooltip title={newMessage.trim() ? 'Send message' : 'Type a message'} arrow>
               <span>
                 <GradientSendButton
@@ -806,8 +806,8 @@ function Conversation() {
       </Fade>
 
       {/* Modern Dialog */}
-      <Dialog 
-        open={clearDialogOpen} 
+      <Dialog
+        open={clearDialogOpen}
         onClose={() => setClearDialogOpen(false)}
         PaperProps={{
           sx: {
@@ -826,15 +826,15 @@ function Conversation() {
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ p: 2.5 }}>
-          <Button 
+          <Button
             onClick={() => setClearDialogOpen(false)}
             sx={{ borderRadius: 2, px: 3 }}
           >
             Cancel
           </Button>
-          <Button 
-            onClick={handleClearChat} 
-            variant="contained" 
+          <Button
+            onClick={handleClearChat}
+            variant="contained"
             color="error"
             sx={{ borderRadius: 2, px: 3 }}
             startIcon={<DeleteSweepIcon />}

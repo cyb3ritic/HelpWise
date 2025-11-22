@@ -91,11 +91,20 @@ function CreateRequest() {
         { description },
         { withCredentials: true }
       );
-      const enhancedDescription = enhanceRes.data.enhancedDescription;
-      setFormData((prev) => ({ ...prev, description: enhancedDescription }));
+
+      const { enhancedDescription, suggestedCategoryId } = enhanceRes.data;
+
+      setFormData((prev) => ({
+        ...prev,
+        description: enhancedDescription,
+        typeOfHelp: suggestedCategoryId || prev.typeOfHelp
+      }));
+
       setSnackbar({
         open: true,
-        message: '✨ Description enhanced successfully!',
+        message: suggestedCategoryId
+          ? '✨ Description enhanced & Category auto-selected!'
+          : '✨ Description enhanced successfully!',
         severity: 'success',
       });
     } catch (err) {

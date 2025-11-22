@@ -66,10 +66,10 @@ function Layout({ toggleTheme }) {
         {/* Content Wrapper */}
         <Box
           sx={{
-            flexGrow: 1,
-            overflowY: 'auto',
             display: 'flex',
             flexDirection: 'column',
+            flexGrow: 1,
+            // minHeight: '100vh', // Removed to fix scroll locking
           }}
         >
           {/* Render child routes */}

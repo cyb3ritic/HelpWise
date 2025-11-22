@@ -7,8 +7,8 @@ const { check, validationResult } = require('express-validator');
 const cookieParser = require('cookie-parser');
 
 const User = require('../models/User');
-const TypeOfHelp = require('../models/TypeOfHelp'); // Model remains TypeOfHelp
-const Bid = require('../models/Bid'); // Ensure Bid model is defined
+const TypeOfHelp = require('../models/TypeOfHelp');
+const Bid = require('../models/Bid');
 const auth = require('../middleware/auth');
 const nodemailer = require('nodemailer');
 require('dotenv').config();
@@ -25,7 +25,7 @@ const generateToken = (user, res) => {
   res.cookie('token', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production', // Set to true in production
-    sameSite: 'Strict',
+    sameSite: 'Lax',
     maxAge: 3600000, // 1 hour
   });
 };
@@ -44,61 +44,46 @@ router.post(
     check('password', 'Password must be at least 6 characters long').isLength({
       min: 6,
     }),
-    // check('expertise', 'Expertise must be an array of TypeOfHelp IDs')
-    //   .isArray()
-    //   .custom((arr) => arr.length >= 0)
-    //   .withMessage('Select at least one expertise'),
   ],
   async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      // Send all validation errors
       return res.status(400).json({ errors: errors.array() });
     }
 
-    console.log('Register Request Body:', req.body); // For debugging
+    console.log('Register Request Body:', req.body);
 
     const { firstName, lastName, email, password, expertise } = req.body;
 
     try {
-      // Check if user already exists
       let user = await User.findOne({ email });
       if (user)
         return res.status(400).json({ msg: 'User with this email already exists' });
 
-      // Validate TypeOfHelp IDs
-      // const validTypeOfHelp = await TypeOfHelp.find({ _id: { $in: expertise } });
-      // if (validTypeOfHelp.length !== expertise.length) {
-      //   return res.status(400).json({ msg: 'Some expertise IDs are invalid' });
-      // }
-      //adding
+      let expertiseIds = [];
+      if (!expertise || expertise.length === 0) {
+        const defaultType = await TypeOfHelp.findOne();
+        expertiseIds = defaultType ? [defaultType._id] : [];
+      } else {
+        expertiseIds = expertise;
+      }
 
-    if (!expertise || expertise.length === 0) {
-  // Find a default TypeOfHelp (e.g., the first one)
-  const defaultType = await TypeOfHelp.findOne();
-  expertise = defaultType ? [defaultType._id] : [];
-}
+      const validTypeOfHelp = await TypeOfHelp.find({ _id: { $in: expertiseIds } });
+      if (validTypeOfHelp.length !== expertiseIds.length) {
+        return res.status(400).json({ msg: 'Some expertise IDs are invalid' });
+      }
 
-       const validTypeOfHelp = await TypeOfHelp.find({ _id: { $in: expertise } });
-    if (validTypeOfHelp.length !== expertise.length) {
-      return res.status(400).json({ msg: 'Some expertise IDs are invalid' });
-    }
+      user = new User({ firstName, lastName, email, password, expertise: expertiseIds, isVerified: false });
 
-      // Create new user (initially not verified)
-      user = new User({ firstName, lastName, email, password, expertise, isVerified: false });
-
-      // Hash password
       const salt = await bcrypt.genSalt(10);
       user.password = await bcrypt.hash(password, salt);
 
-      // Generate OTP and expiry (15 minutes)
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
       user.emailOTP = otp;
       user.otpExpiresAt = Date.now() + 15 * 60 * 1000;
 
       await user.save();
 
-      // Attempt to send OTP email if SMTP configured, otherwise log OTP
       try {
         if (process.env.SMTP_HOST && process.env.SMTP_USER) {
           const transporter = nodemailer.createTransport({
@@ -146,26 +131,22 @@ router.post(
   async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      // Send all validation errors
       return res.status(400).json({ errors: errors.array() });
     }
 
-    console.log('Login Request Body:', req.body); // For debugging
+    console.log('Login Request Body:', req.body);
 
     const { email, password } = req.body;
 
     try {
-      // Check for user
       let user = await User.findOne({ email });
       if (!user)
         return res.status(400).json({ msg: 'Invalid Credentials' });
 
-      // Match password
       const isMatch = await bcrypt.compare(password, user.password);
       if (!isMatch)
         return res.status(400).json({ msg: 'Invalid Credentials' });
 
-      // Generate JWT and set cookie
       generateToken(user, res);
 
       res.json({ msg: 'Logged in successfully' });
@@ -184,7 +165,7 @@ router.post('/logout', auth, (req, res) => {
     res.clearCookie('token', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'Strict',
+      sameSite: 'Lax',
     });
     res.json({ msg: 'Logged out successfully' });
   } catch (err) {
@@ -214,7 +195,7 @@ router.get('/me', auth, async (req, res) => {
 router.put(
   '/me',
   [
-    auth, // Ensure the user is authenticated
+    auth,
     [
       check('firstName', 'First name is required').not().isEmpty(),
       check('firstName', 'First name must contain only letters and spaces').matches(/^[a-zA-Z\s]+$/),
@@ -231,43 +212,34 @@ router.put(
   async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      // Send all validation errors
       return res.status(400).json({ errors: errors.array() });
     }
 
     const { firstName, lastName, email, password, expertise } = req.body;
 
     try {
-      // Find the user by ID
       let user = await User.findById(req.user.id);
       if (!user) {
         return res.status(404).json({ msg: 'User not found' });
       }
 
-      // Validate TypeOfHelp IDs
       const validTypeOfHelp = await TypeOfHelp.find({ _id: { $in: expertise } });
       if (validTypeOfHelp.length !== expertise.length) {
         return res.status(400).json({ msg: 'Some expertise IDs are invalid' });
       }
 
-      // Update fields
       user.firstName = firstName;
       user.lastName = lastName;
       user.email = email;
       user.expertise = expertise;
 
       if (password) {
-        // Hash the new password
         const salt = await bcrypt.genSalt(10);
         user.password = await bcrypt.hash(password, salt);
       }
 
       await user.save();
 
-      // Optionally, generate a new token if needed
-      // generateToken(user, res);
-
-      // Populate expertise before sending
       user = await User.findById(user.id).select('-password').populate('expertise', 'name description');
 
       res.json(user);
@@ -295,20 +267,17 @@ router.put(
   async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      // Send all validation errors
       return res.status(400).json({ errors: errors.array() });
     }
 
     const { expertise } = req.body;
 
     try {
-      // Validate TypeOfHelp IDs
       const validExpertise = await TypeOfHelp.find({ _id: { $in: expertise } });
       if (validExpertise.length !== expertise.length) {
         return res.status(400).json({ msg: 'Some expertise IDs are invalid' });
       }
 
-      // Update user's expertise
       const user = await User.findByIdAndUpdate(
         req.user.id,
         { expertise },
@@ -377,7 +346,6 @@ router.post(
       user.otpExpiresAt = undefined;
       await user.save();
 
-      // Generate JWT and set cookie upon successful verification
       generateToken(user, res);
 
       res.json({ msg: 'Email verified successfully' });

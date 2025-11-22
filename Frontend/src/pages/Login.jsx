@@ -18,7 +18,7 @@ import {
   Stack,
   Divider,
 } from '@mui/material';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
 import {
@@ -31,7 +31,10 @@ import {
 function Login() {
   const theme = useTheme();
   const navigate = useNavigate();
-  const { setUser } = useContext(AuthContext);
+  const { user, setUser } = useContext(AuthContext); // Get user from context
+  const location = useLocation();
+  const from = location.state?.from?.pathname || '/';
+
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -40,6 +43,13 @@ function Login() {
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Redirect if already logged in
+  React.useEffect(() => {
+    if (user) {
+      navigate(from, { replace: true });
+    }
+  }, [user, navigate, from]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -58,7 +68,7 @@ function Login() {
       await axios.post('/api/users/login', { email, password }, { withCredentials: true });
       const res = await axios.get('/api/users/me', { withCredentials: true });
       setUser(res.data);
-      navigate('/');
+      navigate(from, { replace: true });
     } catch (err) {
       console.error(err);
       setError(err.response?.data?.msg || 'Invalid credentials.');

@@ -2,6 +2,7 @@ const express = require('express');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { check, validationResult } = require('express-validator');
 const auth = require('../middleware/auth');
+const TypeOfHelp = require('../models/TypeOfHelp'); // Added TypeOfHelp model import
 require('dotenv').config();
 
 const router = express.Router();
@@ -30,14 +31,45 @@ router.post(
     const { description } = req.body;
 
     try {
+      // Fetch all available categories
+      const categories = await TypeOfHelp.find({}, 'name description _id');
+      const categoriesList = categories
+        .map((c) => `- ${c.name} (ID: ${c._id}): ${c.description || ''}`)
+        .join('\n');
+
       const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-      const prompt = `Please enhance the following help request description to make it clear, detailed, professional, and compelling. Keep it concise but informative:\n\n"${description}"\n\nProvide only the enhanced description without any additional commentary.`;
+      const prompt = `
+        You are an intelligent assistant for a help request platform.
+        
+        Task 1: Enhance the following help request description to be clear, detailed, professional, and compelling.
+        Task 2: Select the most appropriate category ID from the provided list that best matches the description.
+
+        User Description: "${description}"
+
+        Available Categories:
+        ${categoriesList}
+
+        Output Format:
+        Provide the response in strictly valid JSON format with no additional text or markdown formatting:
+        {
+          "enhancedDescription": "The enhanced description text...",
+          "suggestedCategoryId": "The exact ID of the best matching category"
+        }
+      `;
 
       const result = await model.generateContent(prompt);
-      const enhancedDescription = result.response.text().trim();
+      const responseText = result.response.text().trim();
 
-      res.json({ enhancedDescription });
+      // Clean up the response if it contains markdown code blocks
+      const jsonString = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+
+      const parsedResponse = JSON.parse(jsonString);
+
+      res.json({
+        enhancedDescription: parsedResponse.enhancedDescription,
+        suggestedCategoryId: parsedResponse.suggestedCategoryId
+      });
     } catch (err) {
       console.error('Gemini API Error:', err.message || err);
       console.error('Full error details:', err);
