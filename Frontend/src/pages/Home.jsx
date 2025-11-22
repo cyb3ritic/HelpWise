@@ -18,6 +18,10 @@ import {
   Divider,
   CircularProgress,
   Skeleton,
+  TextField,
+  IconButton,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import {
   Handshake,
@@ -34,6 +38,13 @@ import {
   CheckCircle,
   AttachMoney,
   AccessTime,
+  Email,
+  Phone,
+  LocationOn,
+  Send,
+  Twitter,
+  GitHub,
+  LinkedIn,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
@@ -45,6 +56,22 @@ function Home() {
   const { user } = useContext(AuthContext);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  
+  // Contact form state
+  const [contactForm, setContactForm] = useState({
+    name: '',
+    email: '',
+    subject: '',
+    message: '',
+  });
+  const [contactSubmitting, setContactSubmitting] = useState(false);
+  
+  // Snackbar state
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'info',
+  });
 
   // Fetch dashboard statistics
   useEffect(() => {
@@ -70,6 +97,59 @@ function Home() {
 
     fetchStats();
   }, []);
+
+  // Handle contact form submission
+  const handleContactSubmit = async () => {
+    // Validation
+    if (!contactForm.name || !contactForm.email || !contactForm.message) {
+      setSnackbar({
+        open: true,
+        message: 'Please fill in all required fields',
+        severity: 'warning',
+      });
+      return;
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(contactForm.email)) {
+      setSnackbar({
+        open: true,
+        message: 'Please enter a valid email address',
+        severity: 'warning',
+      });
+      return;
+    }
+
+    setContactSubmitting(true);
+    try {
+      await axios.post('/api/contact', contactForm, { withCredentials: true });
+      
+      // Success
+      setSnackbar({
+        open: true,
+        message: 'Message sent successfully! We\'ll get back to you soon.',
+        severity: 'success',
+      });
+      
+      // Reset form
+      setContactForm({ name: '', email: '', subject: '', message: '' });
+    } catch (error) {
+      console.error('Contact form error:', error);
+      setSnackbar({
+        open: true,
+        message: error.response?.data?.msg || 'Failed to send message. Please try again.',
+        severity: 'error',
+      });
+    } finally {
+      setContactSubmitting(false);
+    }
+  };
+
+  // Handle snackbar close
+  const handleCloseSnackbar = () => {
+    setSnackbar({ ...snackbar, open: false });
+  };
 
   const features = [
     {
@@ -112,25 +192,25 @@ function Home() {
 
   // Dynamic stats array using real data
   const statsData = stats ? [
-    { 
-      number: stats.activeUsers > 0 ? `${stats.activeUsers}+` : '0', 
-      label: 'Active Users', 
-      icon: <People /> 
+    {
+      number: stats.activeUsers > 0 ? `${stats.activeUsers}+` : '0',
+      label: 'Active Users',
+      icon: <People />
     },
-    { 
-      number: stats.completedProjects > 0 ? `${stats.completedProjects}+` : '0', 
-      label: 'Completed Projects', 
-      icon: <CheckCircle /> 
+    {
+      number: stats.completedProjects > 0 ? `${stats.completedProjects}+` : '0',
+      label: 'Completed Projects',
+      icon: <CheckCircle />
     },
-    { 
-      number: `${stats.averageRating}/5`, 
-      label: 'Average Rating', 
-      icon: <EmojiEvents /> 
+    {
+      number: `${stats.averageRating}/5`,
+      label: 'Average Rating',
+      icon: <EmojiEvents />
     },
-    { 
-      number: stats.supportAvailable, 
-      label: 'Support Available', 
-      icon: <AccessTime /> 
+    {
+      number: stats.supportAvailable,
+      label: 'Support Available',
+      icon: <AccessTime />
     },
   ] : [];
 
@@ -156,15 +236,6 @@ function Home() {
         'Choose your helper and start working together. Use our chat system to stay connected throughout the process.',
       icon: <Handshake />,
     },
-  ];
-
-  const benefits = [
-    'No upfront fees - Pay only when satisfied',
-    'Verified helpers with ratings and reviews',
-    'Secure payment processing',
-    'Dedicated customer support',
-    'Money-back guarantee',
-    'Easy dispute resolution',
   ];
 
   // Stats skeleton loader component
@@ -616,151 +687,345 @@ function Home() {
         </Container>
       </Box>
 
-      {/* Benefits Section with Real Platform Highlights */}
+      {/* Contact Section */}
       <Container maxWidth="lg" sx={{ py: 8 }}>
-        <Grid container spacing={4} alignItems="center">
+        <Grid container spacing={6} alignItems="center">
+          {/* Left Side - Contact Info */}
           <Grid item xs={12} md={6}>
-            <Typography variant="h3" fontWeight="bold" gutterBottom>
-              Why Thousands Choose HelpWise
+            <Typography
+              variant="h3"
+              fontWeight="bold"
+              gutterBottom
+              sx={{
+                background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                backgroundClip: 'text',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}
+            >
+              Get in Touch
             </Typography>
-            <Typography variant="body1" color="text.secondary" paragraph sx={{ fontSize: '1.1rem' }}>
-              Join a thriving community where expertise meets opportunity. Whether you're seeking
-              help or offering your skills, HelpWise provides the perfect platform for meaningful
-              collaborations.
+            <Typography variant="body1" color="text.secondary" paragraph sx={{ fontSize: '1.1rem', mb: 4 }}>
+              Have questions? We'd love to hear from you. Send us a message and we'll respond as soon as possible.
             </Typography>
-            <Stack spacing={2} sx={{ mt: 3 }}>
-              {benefits.map((benefit, index) => (
-                <Stack direction="row" spacing={2} alignItems="center" key={index}>
-                  <CheckCircle sx={{ color: theme.palette.success.main, fontSize: 24 }} />
-                  <Typography variant="body1" fontWeight="500">
-                    {benefit}
-                  </Typography>
+
+            {/* Contact Details */}
+            <Stack spacing={3}>
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 3,
+                  border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                  borderRadius: 2,
+                  transition: 'all 0.3s ease',
+                  cursor: 'pointer',
+                  '&:hover': {
+                    transform: 'translateX(8px)',
+                    borderColor: theme.palette.primary.main,
+                    boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, 0.15)}`,
+                  }
+                }}
+                onClick={() => window.location.href = 'mailto:support@helpwise.com'}
+              >
+                <Stack direction="row" spacing={2} alignItems="center">
+                  <Box
+                    sx={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: '50%',
+                      background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.2)} 0%, ${alpha(theme.palette.secondary.main, 0.2)} 100%)`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Email sx={{ color: theme.palette.primary.main, fontSize: 24 }} />
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                      EMAIL US
+                    </Typography>
+                    <Typography variant="body1" fontWeight={600}>
+                      support@helpwise.com
+                    </Typography>
+                  </Box>
                 </Stack>
-              ))}
+              </Paper>
+
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 3,
+                  border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                  borderRadius: 2,
+                  transition: 'all 0.3s ease',
+                  cursor: 'pointer',
+                  '&:hover': {
+                    transform: 'translateX(8px)',
+                    borderColor: theme.palette.primary.main,
+                    boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, 0.15)}`,
+                  }
+                }}
+                onClick={() => window.location.href = 'tel:+919876543210'}
+              >
+                <Stack direction="row" spacing={2} alignItems="center">
+                  <Box
+                    sx={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: '50%',
+                      background: `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.2)} 0%, ${alpha(theme.palette.info.main, 0.2)} 100%)`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Phone sx={{ color: theme.palette.success.main, fontSize: 24 }} />
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                      CALL US
+                    </Typography>
+                    <Typography variant="body1" fontWeight={600}>
+                      +91 9876543210
+                    </Typography>
+                  </Box>
+                </Stack>
+              </Paper>
+
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 3,
+                  border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                  borderRadius: 2,
+                  transition: 'all 0.3s ease',
+                  cursor: 'pointer',
+                  '&:hover': {
+                    transform: 'translateX(8px)',
+                    borderColor: theme.palette.primary.main,
+                    boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, 0.15)}`,
+                  }
+                }}
+                onClick={() => window.open('https://www.google.com/maps/place/Bangalore,+Karnataka,+India', '_blank')}
+              >
+                <Stack direction="row" spacing={2} alignItems="center">
+                  <Box
+                    sx={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: '50%',
+                      background: `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.2)} 0%, ${alpha(theme.palette.error.main, 0.2)} 100%)`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <LocationOn sx={{ color: theme.palette.warning.main, fontSize: 24 }} />
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                      VISIT US
+                    </Typography>
+                    <Typography variant="body1" fontWeight={600}>
+                      Bangalore, Karnataka, India
+                    </Typography>
+                  </Box>
+                </Stack>
+              </Paper>
             </Stack>
+
+            {/* Social Media Links */}
+            <Box sx={{ mt: 4 }}>
+              <Typography variant="body2" color="text.secondary" fontWeight={600} gutterBottom>
+                FOLLOW US
+              </Typography>
+              <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
+                <IconButton
+                  sx={{
+                    bgcolor: alpha(theme.palette.primary.main, 0.1),
+                    '&:hover': {
+                      bgcolor: '#1DA1F2',
+                      color: 'white',
+                      transform: 'translateY(-4px)',
+                    },
+                    transition: 'all 0.3s ease',
+                  }}
+                  onClick={() => window.open('https://twitter.com', '_blank')}
+                >
+                  <Twitter />
+                </IconButton>
+                <IconButton
+                  sx={{
+                    bgcolor: alpha(theme.palette.primary.main, 0.1),
+                    '&:hover': {
+                      bgcolor: '#333',
+                      color: 'white',
+                      transform: 'translateY(-4px)',
+                    },
+                    transition: 'all 0.3s ease',
+                  }}
+                  onClick={() => window.open('https://github.com', '_blank')}
+                >
+                  <GitHub />
+                </IconButton>
+                <IconButton
+                  sx={{
+                    bgcolor: alpha(theme.palette.primary.main, 0.1),
+                    '&:hover': {
+                      bgcolor: '#0077B5',
+                      color: 'white',
+                      transform: 'translateY(-4px)',
+                    },
+                    transition: 'all 0.3s ease',
+                  }}
+                  onClick={() => window.open('https://linkedin.com', '_blank')}
+                >
+                  <LinkedIn />
+                </IconButton>
+              </Stack>
+            </Box>
           </Grid>
+
+          {/* Right Side - Contact Form */}
           <Grid item xs={12} md={6}>
-            {loading ? (
+            <Paper
+              elevation={0}
+              sx={{
+                p: 4,
+                border: `2px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                borderRadius: 3,
+                background: `linear-gradient(135deg, ${alpha(
+                  theme.palette.primary.main,
+                  theme.palette.mode === 'dark' ? 0.05 : 0.03
+                )} 0%, ${alpha(
+                  theme.palette.secondary.main,
+                  theme.palette.mode === 'dark' ? 0.05 : 0.03
+                )} 100%)`,
+              }}
+            >
+              <Typography variant="h5" fontWeight="bold" gutterBottom>
+                Send us a Message
+              </Typography>
+              <Typography variant="body2" color="text.secondary" paragraph>
+                Fill out the form below and we'll get back to you within 24 hours.
+              </Typography>
+
+              <Stack spacing={3} sx={{ mt: 3 }}>
+                <TextField
+                  fullWidth
+                  label="Your Name"
+                  variant="outlined"
+                  placeholder="John Doe"
+                  value={contactForm.name}
+                  onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2,
+                      bgcolor: theme.palette.background.paper,
+                    },
+                  }}
+                />
+
+                <TextField
+                  fullWidth
+                  label="Email Address"
+                  variant="outlined"
+                  type="email"
+                  placeholder="john@example.com"
+                  value={contactForm.email}
+                  onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2,
+                      bgcolor: theme.palette.background.paper,
+                    },
+                  }}
+                />
+
+                <TextField
+                  fullWidth
+                  label="Subject (Optional)"
+                  variant="outlined"
+                  placeholder="How can we help you?"
+                  value={contactForm.subject}
+                  onChange={(e) => setContactForm({ ...contactForm, subject: e.target.value })}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2,
+                      bgcolor: theme.palette.background.paper,
+                    },
+                  }}
+                />
+
+                <TextField
+                  fullWidth
+                  label="Message"
+                  variant="outlined"
+                  multiline
+                  rows={4}
+                  placeholder="Tell us more about your inquiry..."
+                  value={contactForm.message}
+                  onChange={(e) => setContactForm({ ...contactForm, message: e.target.value })}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2,
+                      bgcolor: theme.palette.background.paper,
+                    },
+                  }}
+                />
+
+                <Button
+                  variant="contained"
+                  size="large"
+                  endIcon={contactSubmitting ? <CircularProgress size={20} sx={{ color: 'white' }} /> : <Send />}
+                  onClick={handleContactSubmit}
+                  disabled={contactSubmitting}
+                  sx={{
+                    textTransform: 'none',
+                    fontWeight: 700,
+                    py: 1.5,
+                    borderRadius: 2,
+                    background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                    boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, 0.4)}`,
+                    '&:hover': {
+                      transform: 'translateY(-2px)',
+                      boxShadow: `0 6px 25px ${alpha(theme.palette.primary.main, 0.5)}`,
+                    },
+                    '&:disabled': {
+                      background: alpha(theme.palette.primary.main, 0.5),
+                    },
+                    transition: 'all 0.3s ease',
+                  }}
+                >
+                  {contactSubmitting ? 'Sending...' : 'Send Message'}
+                </Button>
+              </Stack>
+
+              {/* Quick Response Badge */}
               <Paper
                 elevation={0}
                 sx={{
-                  p: 4,
-                  border: `2px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-                  borderRadius: 3,
+                  mt: 3,
+                  p: 2,
+                  bgcolor: alpha(theme.palette.success.main, 0.1),
+                  borderRadius: 2,
+                  border: `1px solid ${alpha(theme.palette.success.main, 0.3)}`,
                 }}
               >
-                <Skeleton variant="text" width="60%" height={40} />
-                <Divider sx={{ my: 2 }} />
-                <Grid container spacing={3}>
-                  {[1, 2, 3, 4].map((i) => (
-                    <Grid item xs={6} key={i}>
-                      <Skeleton variant="rectangular" height={120} sx={{ borderRadius: 2 }} />
-                    </Grid>
-                  ))}
-                </Grid>
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                  <CheckCircle sx={{ color: theme.palette.success.main, fontSize: 24 }} />
+                  <Box>
+                    <Typography variant="body2" fontWeight={700} color="success.main">
+                      Quick Response Guarantee
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      We typically respond within 2-4 hours during business hours
+                    </Typography>
+                  </Box>
+                </Stack>
               </Paper>
-            ) : (
-              <Paper
-                elevation={0}
-                sx={{
-                  p: 4,
-                  border: `2px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-                  borderRadius: 3,
-                  background: `linear-gradient(135deg, ${alpha(
-                    theme.palette.primary.main,
-                    theme.palette.mode === 'dark' ? 0.1 : 0.05
-                  )} 0%, ${alpha(
-                    theme.palette.secondary.main,
-                    theme.palette.mode === 'dark' ? 0.1 : 0.05
-                  )} 100%)`,
-                }}
-              >
-                <Typography variant="h5" fontWeight="bold" gutterBottom>
-                  Platform Highlights
-                </Typography>
-                <Divider sx={{ my: 2 }} />
-                <Grid container spacing={3}>
-                  <Grid item xs={6}>
-                    <Paper
-                      elevation={0}
-                      sx={{
-                        p: 2,
-                        textAlign: 'center',
-                        bgcolor: alpha(theme.palette.background.paper, 0.8),
-                        borderRadius: 2,
-                      }}
-                    >
-                      <AttachMoney
-                        sx={{ fontSize: 32, color: theme.palette.success.main, mb: 1 }}
-                      />
-                      <Typography variant="h6" fontWeight="bold">
-                        90%
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Helper Earning Rate
-                      </Typography>
-                    </Paper>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Paper
-                      elevation={0}
-                      sx={{
-                        p: 2,
-                        textAlign: 'center',
-                        bgcolor: alpha(theme.palette.background.paper, 0.8),
-                        borderRadius: 2,
-                      }}
-                    >
-                      <Speed sx={{ fontSize: 32, color: theme.palette.primary.main, mb: 1 }} />
-                      <Typography variant="h6" fontWeight="bold">
-                        {stats?.averageResponseTime || 'N/A'}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Avg Response Time
-                      </Typography>
-                    </Paper>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Paper
-                      elevation={0}
-                      sx={{
-                        p: 2,
-                        textAlign: 'center',
-                        bgcolor: alpha(theme.palette.background.paper, 0.8),
-                        borderRadius: 2,
-                      }}
-                    >
-                      <Verified sx={{ fontSize: 32, color: theme.palette.info.main, mb: 1 }} />
-                      <Typography variant="h6" fontWeight="bold">
-                        100%
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Verified Users
-                      </Typography>
-                    </Paper>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Paper
-                      elevation={0}
-                      sx={{
-                        p: 2,
-                        textAlign: 'center',
-                        bgcolor: alpha(theme.palette.background.paper, 0.8),
-                        borderRadius: 2,
-                      }}
-                    >
-                      <EmojiEvents sx={{ fontSize: 32, color: theme.palette.warning.main, mb: 1 }} />
-                      <Typography variant="h6" fontWeight="bold">
-                        {stats?.satisfactionRate || '0%'}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Satisfaction Rate
-                      </Typography>
-                    </Paper>
-                  </Grid>
-                </Grid>
-              </Paper>
-            )}
+            </Paper>
           </Grid>
         </Grid>
       </Container>
@@ -841,6 +1106,27 @@ function Home() {
           </Container>
         </Box>
       )}
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={handleCloseSnackbar}
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ 
+            borderRadius: 2, 
+            fontWeight: 600,
+            boxShadow: theme.shadows[8],
+          }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
