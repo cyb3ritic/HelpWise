@@ -639,7 +639,7 @@ function Home() {
                     },
                   }}
                 >
-                  <Box
+                  {/* <Box
                     sx={{
                       position: 'absolute',
                       top: -24,
@@ -659,7 +659,7 @@ function Home() {
                     }}
                   >
                     {item.step}
-                  </Box>
+                  </Box> */}
                   <CardContent sx={{ pt: 4 }}>
                     <Avatar
                       sx={{
