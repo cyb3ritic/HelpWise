@@ -44,6 +44,7 @@ const INTENTS = {
   GREETING: 'GREETING',
   CREATE_REQUEST: 'CREATE_REQUEST',
   SEARCH_REQUESTS: 'SEARCH_REQUESTS',
+  MY_REQUESTS: 'MY_REQUESTS',
   MY_BIDS: 'MY_BIDS',
   SUPPORT: 'SUPPORT',
   UNKNOWN: 'UNKNOWN',
@@ -56,6 +57,7 @@ Your goal is to classify user intent and extract information.
 Intents:
 - CREATE_REQUEST: User wants to post a new help request OR says "I need help", "help me", "create request", "I want to create a request".
 - SEARCH_REQUESTS: User wants to find work or see requests (e.g., "show me cleaning jobs", "find requests nearby", "search requests").
+- MY_REQUESTS: User wants to see the requests they have created (e.g., "show me my requests", "requests created by me", "my requests", "list my requests").
 - MY_BIDS: User asks about their bids or status (e.g., "did I get the job?", "show my bids", "my bids").
 - SUPPORT: General help, questions about the platform, or reporting issues.
 - GREETING: Hello, hi, hey.
@@ -76,6 +78,10 @@ async function detectIntent(message, history = []) {
   if (lowerMsg.includes('create request') || lowerMsg.includes('post request') || lowerMsg === 'i need help') {
     console.log('[CHATBOT] Manual Override: CREATE_REQUEST');
     return { intent: INTENTS.CREATE_REQUEST, confidence: 1.0 };
+  }
+  if (lowerMsg.includes('my requests') || lowerMsg.includes('requests created by me') || lowerMsg.includes('show my requests')) {
+    console.log('[CHATBOT] Manual Override: MY_REQUESTS');
+    return { intent: INTENTS.MY_REQUESTS, confidence: 1.0 };
   }
   if (lowerMsg.includes('find requests') || lowerMsg.includes('search requests')) {
     console.log('[CHATBOT] Manual Override: SEARCH_REQUESTS');
@@ -145,14 +151,60 @@ async function handleCreateRequest(userId, message, sessionState, chatDoc) {
       break;
 
     case 'ASK_DESCRIPTION':
-      slots.description = message;
+      try {
+        const model = genAI.getGenerativeModel({ model: MODEL_CONFIG.model });
+        const categories = await TypeOfHelp.find({}, 'name description _id');
+        const categoriesList = categories
+          .map((c) => `- ${c.name} (ID: ${c._id}): ${c.description || ''}`)
+          .join('\\n');
+          
+        const prompt = `
+          You are an intelligent assistant for a help request platform.
+          Task 1: Enhance the following help request description to be clear, detailed, professional, and compelling.
+          Task 2: Select the most appropriate category ID from the provided list that best matches the description.
+
+          User Description: "${message}"
+
+          Available Categories:
+          ${categoriesList}
+
+          Output Format:
+          Provide strictly valid JSON format with no additional text or markdown formatting:
+          {
+            "enhancedDescription": "The enhanced description text...",
+            "suggestedCategoryId": "The exact ID of the best matching category"
+          }
+        `;
+        const result = await model.generateContent(prompt);
+        const jsonString = result.response.text().replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
+        const parsedResponse = JSON.parse(jsonString);
+        
+        slots.description = parsedResponse.enhancedDescription;
+        if (parsedResponse.suggestedCategoryId) {
+           slots.typeId = parsedResponse.suggestedCategoryId;
+        }
+      } catch (err) {
+        console.error("Enhancement failed:", err);
+        slots.description = message;
+      }
+
+      responseText = "How much are you willing to pay for this task? (e.g., 45, 50)";
+      nextStep = 'ASK_AMOUNT';
+      break;
+
+    case 'ASK_AMOUNT':
+      slots.amount = parseFloat(message.replace(/[^0-9.]/g, ''));
+      if (isNaN(slots.amount) || slots.amount <= 0) {
+         responseText = "Please enter a valid amount (e.g., 45)";
+         return { text: responseText, metadata: null };
+      }
       responseText = "When do you need this done? (e.g., Tomorrow, Next Week, ASAP)";
       nextStep = 'ASK_TIME';
       break;
 
     case 'ASK_TIME':
       slots.time = message;
-      responseText = `Great! Here's a summary:\n\n📍 Location: ${slots.location}\n🔧 Type: ${slots.type}\n📝 Description: ${slots.description}\n⏰ Time: ${slots.time}\n\nShall I post this request?`;
+      responseText = `Great! Here's a summary:\n\n📍 Location: ${slots.location}\n🔧 Type: ${slots.type}\n📝 Description: ${slots.description}\n💰 Budget: $${slots.amount}\n⏰ Time: ${slots.time}\n\nShall I post this request?`;
       metadata = {
         type: 'CONFIRMATION',
         data: slots,
@@ -167,7 +219,14 @@ async function handleCreateRequest(userId, message, sessionState, chatDoc) {
     case 'CONFIRM':
       if (message.toLowerCase().includes('yes')) {
         try {
-          let typeOfHelpDoc = await TypeOfHelp.findOne({ name: { $regex: slots.type, $options: 'i' } });
+          let typeOfHelpDoc = null;
+          if (slots.typeId) {
+             typeOfHelpDoc = await TypeOfHelp.findById(slots.typeId);
+          }
+          if (!typeOfHelpDoc) {
+             typeOfHelpDoc = await TypeOfHelp.findOne({ name: { $regex: slots.type, $options: 'i' } });
+          }
+
           if (!typeOfHelpDoc) {
             typeOfHelpDoc = await TypeOfHelp.findOne({});
           }
@@ -185,7 +244,7 @@ async function handleCreateRequest(userId, message, sessionState, chatDoc) {
             description: slots.description,
             typeOfHelp: typeOfHelpDoc._id,
             location: slots.location,
-            offeredAmount: 50,
+            offeredAmount: slots.amount || 50,
             responseDeadline: deadline,
             workDeadline: deadline,
             status: 'Open'
@@ -229,7 +288,13 @@ async function handleCreateRequest(userId, message, sessionState, chatDoc) {
 }
 
 async function handleSearchRequests(message) {
-  const keywords = message.replace(/find/gi, '').replace(/search/gi, '').replace(/requests/gi, '').trim();
+  const keywords = message.replace(/find/gi, '')
+                          .replace(/search/gi, '')
+                          .replace(/requests/gi, '')
+                          .replace(/all/gi, '')
+                          .replace(/show/gi, '')
+                          .replace(/me/gi, '')
+                          .trim();
 
   console.log('[CHATBOT] Search Keywords:', keywords);
 
@@ -255,6 +320,22 @@ async function handleSearchRequests(message) {
     text: `I found ${requests.length} requests for you:`,
     metadata: {
       type: 'REQUEST_LIST',
+      data: requests
+    }
+  };
+}
+
+async function handleMyRequests(userId) {
+  const requests = await Request.find({ requesterId: userId }).sort({ createdAt: -1 });
+
+  if (requests.length === 0) {
+    return { text: "You haven't created any requests yet.", metadata: null };
+  }
+
+  return {
+    text: "Here are the requests you've created:",
+    metadata: {
+      type: 'MY_REQUEST_LIST',
       data: requests
     }
   };
@@ -326,6 +407,14 @@ router.post('/', async (req, res) => {
 
       case INTENTS.SEARCH_REQUESTS:
         response = await handleSearchRequests(message);
+        break;
+
+      case INTENTS.MY_REQUESTS:
+        if (!userId) {
+          response.text = "Please log in to view your requests.";
+        } else {
+          response = await handleMyRequests(userId);
+        }
         break;
 
       case INTENTS.MY_BIDS:

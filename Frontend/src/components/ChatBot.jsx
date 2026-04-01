@@ -267,7 +267,7 @@ const HeaderButton = styled(IconButton)(({ theme }) => ({
   },
 }));
 
-const RequestCard = ({ request, onClick }) => (
+const RequestCard = ({ request, onClick, type = 'request' }) => (
   <Card
     sx={{
       minWidth: 250,
@@ -278,7 +278,7 @@ const RequestCard = ({ request, onClick }) => (
       transition: 'transform 0.2s',
       '&:hover': { transform: 'scale(1.02)' }
     }}
-    onClick={() => onClick(request._id)}
+    onClick={() => onClick(request._id, type)}
   >
     <CardContent sx={{ pb: 1 }}>
       <Typography variant="subtitle1" fontWeight="bold" noWrap>
@@ -308,7 +308,7 @@ const BidCard = ({ bid, onClick }) => (
       transition: 'transform 0.2s',
       '&:hover': { transform: 'scale(1.02)' }
     }}
-    onClick={() => onClick(bid.helpRequestId?._id)}
+    onClick={() => onClick(bid._id, 'bid')}
   >
     <CardContent sx={{ pb: 1 }}>
       <Typography variant="subtitle1" fontWeight="bold" noWrap>
@@ -552,10 +552,16 @@ function Chatbot() {
     handleSendMessage(value);
   };
 
-  const handleCardClick = (requestId) => {
-    if (requestId) {
+  const handleCardClick = (id, type = 'request') => {
+    if (id) {
       if (isMobile) setOpen(false);
-      navigate(`/requests/${requestId}`);
+      if (type === 'bid') {
+        navigate(`/my-bids/${id}`);
+      } else if (type === 'my_request') {
+        navigate(`/my-requests/${id}`);
+      } else {
+        navigate(`/requests/${id}`);
+      }
     }
   };
 
@@ -592,7 +598,16 @@ function Chatbot() {
         return (
           <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
             {metadata.data.map((req) => (
-              <RequestCard key={req._id} request={req} onClick={handleCardClick} />
+              <RequestCard key={req._id} request={req} onClick={handleCardClick} type="request" />
+            ))}
+          </Box>
+        );
+
+      case 'MY_REQUEST_LIST':
+        return (
+          <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
+            {metadata.data.map((req) => (
+              <RequestCard key={req._id} request={req} onClick={handleCardClick} type="my_request" />
             ))}
           </Box>
         );
