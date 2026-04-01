@@ -92,7 +92,7 @@ const StateOverlay = styled(Box)(({ theme }) => ({
   zIndex: 1005,
 }));
 
-const VideoCall = ({ socket, currentUser, targetUserId, mode, incomingSignal, endCallCallback, targetParticipant }) => {
+const VideoCall = ({ socket, currentUser, targetUserId, mode, incomingSignal, endCallCallback, targetParticipant, callType }) => {
   const [stream, setStream] = useState(null);
   const [micActive, setMicActive] = useState(true);
   const [videoActive, setVideoActive] = useState(true);
@@ -108,7 +108,7 @@ const VideoCall = ({ socket, currentUser, targetUserId, mode, incomingSignal, en
 
     const setupMediaAndWebRTC = async () => {
       try {
-        const currentStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        const currentStream = await navigator.mediaDevices.getUserMedia({ video: callType === 'video', audio: true });
         setStream(currentStream);
         streamRef.current = currentStream;
 
@@ -156,7 +156,8 @@ const VideoCall = ({ socket, currentUser, targetUserId, mode, incomingSignal, en
             userToCall: targetUserId,
             signalData: peer.localDescription,
             from: currentUser._id,
-            name: `${currentUser.firstName} ${currentUser.lastName}`
+            name: `${currentUser.firstName} ${currentUser.lastName}`,
+            callType
           });
         } else if (mode === 'receiver' && incomingSignal) {
           setCallStatus('connecting');
@@ -252,19 +253,22 @@ const VideoCall = ({ socket, currentUser, targetUserId, mode, incomingSignal, en
 
   return (
     <VideoContainer>
-      {/* Remote Video */}
-      <RemoteVideo playsInline autoPlay ref={userVideo} />
+      {/* Remote Audio/Video */}
+      <RemoteVideo playsInline autoPlay ref={userVideo} sx={{ display: callType === 'video' ? 'block' : 'none' }} />
 
-      {/* State Overlay when not connected */}
-      {callStatus !== 'connected' && (
+      {/* State Overlay when not connected OR doing Audio Call */}
+      {(callStatus !== 'connected' || callType === 'audio') && (
         <StateOverlay>
           <Avatar 
              src={targetParticipant?.avatar} 
-             sx={{ width: 100, height: 100, mb: 1, boxShadow: '0 0 30px rgba(0,0,0,0.5)' }} 
+             sx={{ width: 120, height: 120, mb: 2, boxShadow: '0 0 30px rgba(0,0,0,0.5)' }} 
           />
           <Typography variant="h5" fontWeight="600">
             {targetParticipant?.firstName} {targetParticipant?.lastName}
           </Typography>
+          {callType === 'audio' && callStatus === 'connected' && (
+            <Typography variant="subtitle1" sx={{ opacity: 0.8, color: '#4caf50' }}>Connected</Typography>
+          )}
           {callStatus === 'calling' && (
             <Typography variant="subtitle1" sx={{ opacity: 0.8, display: 'flex', alignItems: 'center', gap: 1 }}>
                 <CircularProgress size={16} color="inherit" /> Calling...
@@ -276,9 +280,11 @@ const VideoCall = ({ socket, currentUser, targetUserId, mode, incomingSignal, en
       )}
 
       {/* Local Video Picture-in-Picture */}
-      <LocalVideoContainer>
-         <LocalVideo playsInline muted autoPlay ref={myVideo} />
-      </LocalVideoContainer>
+      {callType === 'video' && (
+        <LocalVideoContainer>
+           <LocalVideo playsInline muted autoPlay ref={myVideo} />
+        </LocalVideoContainer>
+      )}
 
       {/* Controls */}
       <ControlsOverlay>
@@ -294,11 +300,13 @@ const VideoCall = ({ socket, currentUser, targetUserId, mode, incomingSignal, en
           </ControlButton>
         </Tooltip>
 
-        <Tooltip title={videoActive ? 'Stop Video' : 'Start Video'}>
-          <ControlButton onClick={toggleVideo} active={videoActive}>
-            {videoActive ? <Videocam /> : <VideocamOff />}
-          </ControlButton>
-        </Tooltip>
+        {callType === 'video' && (
+          <Tooltip title={videoActive ? 'Stop Video' : 'Start Video'}>
+            <ControlButton onClick={toggleVideo} active={videoActive}>
+              {videoActive ? <Videocam /> : <VideocamOff />}
+            </ControlButton>
+          </Tooltip>
+        )}
       </ControlsOverlay>
     </VideoContainer>
   );

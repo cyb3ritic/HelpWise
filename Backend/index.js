@@ -106,8 +106,8 @@ io.on('connection', (socket) => {
 
   // --- WebRTC Signaling Events ---
   // Initiate a call
-  socket.on('callUser', ({ userToCall, signalData, from, name }) => {
-    io.to(userToCall).emit('callUser', { signal: signalData, from, name });
+  socket.on('callUser', ({ userToCall, signalData, from, name, callType }) => {
+    io.to(userToCall).emit('callUser', { signal: signalData, from, name, callType });
   });
 
   // Answer a call

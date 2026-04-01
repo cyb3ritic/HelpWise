@@ -44,6 +44,7 @@ import {
   AttachFile as AttachFileIcon,
   Videocam as VideocamIcon,
   PhoneInTalk as PhoneInTalkIcon,
+  Call as CallIcon,
 } from '@mui/icons-material';
 import { styled, alpha, keyframes } from '@mui/material/styles';
 import moment from 'moment';
@@ -392,12 +393,14 @@ function Conversation() {
   const [callerSignal, setCallerSignal] = useState(null);
   const [callActive, setCallActive] = useState(false);
   const [callMode, setCallMode] = useState(null); // 'caller' or 'receiver'
+  const [callType, setCallType] = useState('video'); // 'video' or 'audio'
 
   const handleCallEnded = useCallback(() => {
      setReceivingCall(false);
      setCallActive(false);
      setCallMode(null);
      setCallerSignal(null);
+     setCallType('video');
   }, []);
 
   useEffect(() => {
@@ -448,6 +451,7 @@ function Conversation() {
         if (data.from !== user._id) {
           setReceivingCall(true);
           setCallerSignal(data.signal);
+          if (data.callType) setCallType(data.callType);
         }
       };
 
@@ -564,6 +568,8 @@ function Conversation() {
   if (!conversation) return null;
 
   const otherParticipant = conversation.participants.find((p) => p._id !== user._id);
+  
+  const isConversationDisabled = conversation.requestId && (conversation.requestId.status === 'Closed' || conversation.requestId.status === 'Completed');
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4, px: { xs: 1, sm: 3 } }}>
@@ -624,26 +630,53 @@ function Conversation() {
               </Typography>
             </Box>
 
-            <Tooltip title="Start Video Call" arrow>
-              <IconButton
-                onClick={() => {
-                   setCallActive(true);
-                   setCallMode('caller');
-                }}
-                sx={{
-                  color: theme.palette.primary.main,
-                  bgcolor: alpha(theme.palette.primary.main, 0.1),
-                  mr: 1,
-                  transition: 'all 0.3s ease',
-                  '&:hover': {
-                     transform: 'scale(1.1)',
-                     bgcolor: alpha(theme.palette.primary.main, 0.2),
-                  }
-                }}
-              >
-                <VideocamIcon />
-              </IconButton>
-            </Tooltip>
+            {!isConversationDisabled && (
+              <>
+                <Tooltip title="Start Audio Call" arrow>
+                  <IconButton
+                    onClick={() => {
+                       setCallType('audio');
+                       setCallActive(true);
+                       setCallMode('caller');
+                    }}
+                    sx={{
+                      color: theme.palette.primary.main,
+                      bgcolor: alpha(theme.palette.primary.main, 0.1),
+                      mr: 1,
+                      transition: 'all 0.3s ease',
+                      '&:hover': {
+                         transform: 'scale(1.1)',
+                         bgcolor: alpha(theme.palette.primary.main, 0.2),
+                      }
+                    }}
+                  >
+                    <CallIcon />
+                  </IconButton>
+                </Tooltip>
+
+                <Tooltip title="Start Video Call" arrow>
+                  <IconButton
+                    onClick={() => {
+                       setCallType('video');
+                       setCallActive(true);
+                       setCallMode('caller');
+                    }}
+                    sx={{
+                      color: theme.palette.primary.main,
+                      bgcolor: alpha(theme.palette.primary.main, 0.1),
+                      mr: 1,
+                      transition: 'all 0.3s ease',
+                      '&:hover': {
+                         transform: 'scale(1.1)',
+                         bgcolor: alpha(theme.palette.primary.main, 0.2),
+                      }
+                    }}
+                  >
+                    <VideocamIcon />
+                  </IconButton>
+                </Tooltip>
+              </>
+            )}
 
             <Tooltip title="More options" arrow>
               <IconButton
@@ -809,7 +842,7 @@ function Conversation() {
 
           {/* Glass Input Area */}
           <GlassInputArea>
-            {conversation.requestId && (conversation.requestId.status === 'Closed' || conversation.requestId.status === 'Completed') ? (
+            {isConversationDisabled ? (
               <Alert severity="info" sx={{ width: '100%' }}>
                 This conversation is disabled because the help request is {conversation.requestId.status.toLowerCase()}.
               </Alert>
@@ -907,6 +940,7 @@ function Conversation() {
            targetUserId={otherParticipant?._id}
            targetParticipant={otherParticipant}
            mode={callMode}
+           callType={callType}
            incomingSignal={callerSignal}
            endCallCallback={handleCallEnded}
          />
@@ -928,7 +962,7 @@ function Conversation() {
       >
         <DialogTitle sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', pb: 1 }}>
            <Avatar src={otherParticipant?.avatar} sx={{ width: 80, height: 80, mb: 1, boxShadow: 2, border: `3px solid ${theme.palette.primary.main}`, animation: `${pulse} 2s infinite` }} />
-           <Typography variant="h6" fontWeight={700}>Incoming Video Call</Typography>
+           <Typography variant="h6" fontWeight={700}>Incoming {callType === 'audio' ? 'Audio' : 'Video'} Call</Typography>
            <Typography variant="body2" color="text.secondary">from {otherParticipant?.firstName} {otherParticipant?.lastName}</Typography>
         </DialogTitle>
         <DialogActions sx={{ justifyContent: 'center', pb: 2, gap: 2 }}>
