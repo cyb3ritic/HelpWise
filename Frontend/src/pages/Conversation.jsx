@@ -42,9 +42,12 @@ import {
   AccessTime as AccessTimeIcon,
   EmojiEmotions as EmojiIcon,
   AttachFile as AttachFileIcon,
+  Videocam as VideocamIcon,
+  PhoneInTalk as PhoneInTalkIcon,
 } from '@mui/icons-material';
 import { styled, alpha, keyframes } from '@mui/material/styles';
 import moment from 'moment';
+import VideoCall from '../components/VideoCall';
 
 // --- Beautiful Animations ---
 
@@ -385,6 +388,18 @@ function Conversation() {
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
   const openMenu = Boolean(anchorEl);
 
+  const [receivingCall, setReceivingCall] = useState(false);
+  const [callerSignal, setCallerSignal] = useState(null);
+  const [callActive, setCallActive] = useState(false);
+  const [callMode, setCallMode] = useState(null); // 'caller' or 'receiver'
+
+  const handleCallEnded = useCallback(() => {
+     setReceivingCall(false);
+     setCallActive(false);
+     setCallMode(null);
+     setCallerSignal(null);
+  }, []);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -429,17 +444,28 @@ function Conversation() {
         }
       };
 
+      const handleCallUser = (data) => {
+        if (data.from !== user._id) {
+          setReceivingCall(true);
+          setCallerSignal(data.signal);
+        }
+      };
+
       socket.on('chatMessage', handleChatMessage);
       socket.on('chatCleared', handleChatCleared);
       socket.on('userTyping', handleUserTyping);
+      socket.on('callUser', handleCallUser);
+      socket.on('endCall', handleCallEnded);
 
       return () => {
         socket.off('chatMessage', handleChatMessage);
         socket.off('chatCleared', handleChatCleared);
         socket.off('userTyping', handleUserTyping);
+        socket.off('callUser', handleCallUser);
+        socket.off('endCall', handleCallEnded);
       };
     }
-  }, [socket, conversationId, user]);
+  }, [socket, conversationId, user, handleCallEnded]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -597,6 +623,27 @@ function Conversation() {
                 )}
               </Typography>
             </Box>
+
+            <Tooltip title="Start Video Call" arrow>
+              <IconButton
+                onClick={() => {
+                   setCallActive(true);
+                   setCallMode('caller');
+                }}
+                sx={{
+                  color: theme.palette.primary.main,
+                  bgcolor: alpha(theme.palette.primary.main, 0.1),
+                  mr: 1,
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                     transform: 'scale(1.1)',
+                     bgcolor: alpha(theme.palette.primary.main, 0.2),
+                  }
+                }}
+              >
+                <VideocamIcon />
+              </IconButton>
+            </Tooltip>
 
             <Tooltip title="More options" arrow>
               <IconButton
@@ -851,6 +898,65 @@ function Conversation() {
           </Button>
         </DialogActions>
       </Dialog >
+
+      {/* Video Call Component Overlay */}
+      {callActive && (
+         <VideoCall
+           socket={socket}
+           currentUser={user}
+           targetUserId={otherParticipant?._id}
+           targetParticipant={otherParticipant}
+           mode={callMode}
+           incomingSignal={callerSignal}
+           endCallCallback={handleCallEnded}
+         />
+      )}
+
+      {/* Incoming Call Dialog */}
+      <Dialog
+        open={receivingCall && !callActive}
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            p: 1,
+            backdropFilter: 'blur(20px)',
+            background: theme.palette.mode === 'dark' ? alpha('#1e1e2e', 0.9) : alpha('#ffffff', 0.9),
+            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+            animation: `${fadeInUp} 0.3s ease-out`,
+          }
+        }}
+      >
+        <DialogTitle sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', pb: 1 }}>
+           <Avatar src={otherParticipant?.avatar} sx={{ width: 80, height: 80, mb: 1, boxShadow: 2, border: `3px solid ${theme.palette.primary.main}`, animation: `${pulse} 2s infinite` }} />
+           <Typography variant="h6" fontWeight={700}>Incoming Video Call</Typography>
+           <Typography variant="body2" color="text.secondary">from {otherParticipant?.firstName} {otherParticipant?.lastName}</Typography>
+        </DialogTitle>
+        <DialogActions sx={{ justifyContent: 'center', pb: 2, gap: 2 }}>
+           <Button
+             variant="contained"
+             color="error"
+             onClick={() => {
+                socket.emit('endCall', { to: otherParticipant?._id });
+                handleCallEnded();
+             }}
+             sx={{ borderRadius: 8, px: 3 }}
+           >
+             Decline
+           </Button>
+           <Button
+             variant="contained"
+             color="success"
+             startIcon={<PhoneInTalkIcon />}
+             onClick={() => {
+                setCallActive(true);
+                setCallMode('receiver');
+             }}
+             sx={{ borderRadius: 8, px: 4 }}
+           >
+             Accept
+           </Button>
+        </DialogActions>
+      </Dialog>
     </Container >
   );
 }

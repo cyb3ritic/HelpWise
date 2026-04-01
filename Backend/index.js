@@ -104,6 +104,27 @@ io.on('connection', (socket) => {
     console.log(`Socket ${socket.id} joined room ${conversationId}`);
   });
 
+  // --- WebRTC Signaling Events ---
+  // Initiate a call
+  socket.on('callUser', ({ userToCall, signalData, from, name }) => {
+    io.to(userToCall).emit('callUser', { signal: signalData, from, name });
+  });
+
+  // Answer a call
+  socket.on('answerCall', (data) => {
+    io.to(data.to).emit('callAccepted', data.signal);
+  });
+
+  // Handle ICE candidates
+  socket.on('iceCandidate', ({ to, candidate }) => {
+    io.to(to).emit('iceCandidate', candidate);
+  });
+
+  // End call
+  socket.on('endCall', ({ to }) => {
+    io.to(to).emit('endCall');
+  });
+
   // Listen for chat messages - REMOVED, handled in routes/conversations.js
   // socket.on('chatMessage', async ({ conversationId, message }) => { ... });
 
