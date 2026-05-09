@@ -9,6 +9,7 @@ const User = require('../models/User');
 const Conversation = require('../models/Conversation');
 const auth = require('../middleware/auth');
 const mongoose = require('mongoose');
+const { generateEmbedding } = require('../utils/embeddings');
 
 /**
  * @route   POST /api/requests
@@ -34,7 +35,7 @@ router.post(
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { title, description, typeOfHelp, offeredAmount, responseDeadline, workDeadline } = req.body;
+    const { title, description, typeOfHelp, offeredAmount, responseDeadline, workDeadline, location } = req.body;
 
     try {
       const type = await TypeOfHelp.findById(typeOfHelp);
@@ -42,7 +43,7 @@ router.post(
         return res.status(400).json({ errors: [{ msg: 'Invalid Type of Help' }] });
       }
 
-      const newRequest = new Request({
+      const requestData = {
         title,
         description,
         typeOfHelp,
@@ -50,12 +51,71 @@ router.post(
         responseDeadline,
         workDeadline,
         requesterId: req.user.id,
-      });
+      };
+
+      if (location && typeof location.lat === 'number' && typeof location.lng === 'number') {
+        requestData.location = {
+          type: 'Point',
+          coordinates: [location.lng, location.lat]
+        };
+      }
+
+      // Generate description embedding for Smart Matching
+      const textToEmbed = `Title: ${title}. Description: ${description}. Category: ${type.name}`;
+      requestData.descriptionEmbedding = await generateEmbedding(textToEmbed);
+
+      const newRequest = new Request(requestData);
 
       const request = await newRequest.save();
 
-      // Emit notification to all connected clients
-      if (req.io) {
+      // SMART MATCHING: Find top 5 matched helpers using Vector Search
+      let matchedHelpers = [];
+      try {
+        if (requestData.descriptionEmbedding && requestData.descriptionEmbedding.length > 0) {
+          const pipeline = [
+            {
+              $search: {
+                index: 'default', // Requires Atlas Search index to be named 'default'
+                knnBeta: {
+                  vector: requestData.descriptionEmbedding,
+                  path: 'skillsEmbedding',
+                  k: 20
+                }
+              }
+            }
+          ];
+
+          // If location was provided, filter by distance (10 km radius)
+          if (location && location.lat && location.lng) {
+            pipeline.push({
+              $match: {
+                homeLocation: {
+                  $geoWithin: {
+                    $centerSphere: [ [location.lng, location.lat], 10 / 3963.2 ] // 10 miles radius
+                  }
+                }
+              }
+            });
+          }
+
+          pipeline.push({ $limit: 5 });
+
+          matchedHelpers = await User.aggregate(pipeline);
+        }
+      } catch (searchError) {
+        console.error("Vector Search failed (Index might be missing or wrongly configured):", searchError.message);
+        // Fallback: Just find latest 5 verified users
+        matchedHelpers = await User.find({ isVerified: true }).limit(5);
+      }
+
+      // Emit targeted notifications to matched helpers
+      if (matchedHelpers.length > 0 && req.io) {
+        console.log(`[Smart Match] Found ${matchedHelpers.length} helpers for request ${request._id}`);
+        matchedHelpers.forEach(helper => {
+          req.io.to(helper._id.toString()).emit('emergencyRequestMatch', request);
+        });
+      } else if (req.io) {
+        // Fallback to global emit if no one matched
         req.io.emit('newRequest', request);
       }
 
@@ -81,6 +141,44 @@ router.get('/', async (req, res) => {
     res.json(requests);
   } catch (err) {
     console.error('Error fetching Requests:', err.message);
+    res.status(500).send('Server error');
+  }
+});
+
+/**
+ * @route   GET /api/requests/nearby
+ * @desc    Get nearby help requests
+ * @access  Public
+ */
+router.get('/nearby', async (req, res) => {
+  const { lat, lng, radius = 10 } = req.query;
+
+  if (!lat || !lng) {
+    return res.status(400).json({ msg: 'Please provide lat and lng query parameters' });
+  }
+
+  const radiusInMeters = radius * 1000;
+
+  try {
+    const requests = await Request.find({
+      status: 'Open',
+      location: {
+        $near: {
+          $geometry: {
+            type: 'Point',
+            coordinates: [parseFloat(lng), parseFloat(lat)],
+          },
+          $maxDistance: radiusInMeters,
+        },
+      },
+    })
+      .populate('typeOfHelp', 'name')
+      .populate('requesterId', 'firstName lastName')
+      .limit(50);
+
+    res.json(requests);
+  } catch (err) {
+    console.error('Error fetching nearby Requests:', err.message);
     res.status(500).send('Server error');
   }
 });

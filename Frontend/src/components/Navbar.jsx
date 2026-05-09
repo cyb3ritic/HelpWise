@@ -68,6 +68,13 @@ function Navbar({ handleDrawerToggle, toggleDrawerShrink, toggleTheme, drawerWid
     }
   }, [user]);
 
+  // Request browser notification permission
+  useEffect(() => {
+    if (user && 'Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+      Notification.requestPermission();
+    }
+  }, [user]);
+
   useEffect(() => {
     if (socket) {
       socket.on('newNotification', (notification) => {
@@ -75,8 +82,29 @@ function Navbar({ handleDrawerToggle, toggleDrawerShrink, toggleTheme, drawerWid
         setUnreadCount((prev) => prev + 1);
       });
 
+      // Listen for targeted smart matches
+      socket.on('emergencyRequestMatch', (request) => {
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification('Emergency Request Match!', {
+            body: `New request near you: ${request.title}`,
+            icon: '/vite.svg'
+          });
+        }
+        
+        const newNotif = {
+          _id: 'match_' + Date.now().toString(),
+          message: `Emergency Match: ${request.title}`,
+          read: false,
+          createdAt: new Date(),
+          relatedBid: request._id 
+        };
+        setNotifications((prev) => [newNotif, ...prev]);
+        setUnreadCount((prev) => prev + 1);
+      });
+
       return () => {
         socket.off('newNotification');
+        socket.off('emergencyRequestMatch');
       };
     }
   }, [socket]);
@@ -232,6 +260,11 @@ function Navbar({ handleDrawerToggle, toggleDrawerShrink, toggleTheme, drawerWid
               <Tooltip title="View All Help Requests" placement="bottom">
                 <Button color="inherit" component={Link} to="/all-requests" sx={{ ml: 1, display: { xs: 'none', sm: 'block' } }}>
                   All Requests
+                </Button>
+              </Tooltip>
+              <Tooltip title="View Help Map" placement="bottom">
+                <Button color="inherit" component={Link} to="/map" sx={{ ml: 1, display: { xs: 'none', sm: 'block' } }}>
+                  Help Map
                 </Button>
               </Tooltip>
               <Tooltip title="Logout" placement="bottom">

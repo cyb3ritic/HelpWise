@@ -12,6 +12,7 @@ import UserHelpRequestDetailsPage from './pages/UserHelpRequestDetailsPage';
 import UserHelpRequestsPage from './pages/UserHelpRequestPage';
 import Conversation from './pages/Conversation';
 import AllRequests from './pages/AllRequests';
+import HelpMap from './pages/HelpMap';
 import BidPage from './pages/BidPage';
 import MyBids from './pages/MyBids';
 import Conversations from './pages/Conversations';
@@ -57,6 +58,7 @@ function App() {
             <Route path="my-requests" element={<UserHelpRequestsPage />} />
             <Route path="my-requests/:requestId" element={<UserHelpRequestDetailsPage />} />
             <Route path="all-requests" element={<AllRequests />} />
+            <Route path="map" element={<HelpMap />} />
             <Route path="my-bids" element={<MyBids />} />
             <Route path="my-bids/:bidId" element={<BidDetails />} />
             <Route path="conversations" element={<Conversations />} />

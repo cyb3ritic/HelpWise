@@ -34,6 +34,37 @@ import {
 import dayjs from 'dayjs';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+
+// Fix leaflet marker icon issue
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
+
+function LocationMarker({ position, setPosition }) {
+  const map = useMapEvents({
+    click(e) {
+      setPosition(e.latlng);
+      map.flyTo(e.latlng, map.getZoom());
+    },
+  });
+
+  // Re-center if position prop changes externally (e.g. geolocation)
+  useEffect(() => {
+    if (position) {
+      map.flyTo(position, map.getZoom());
+    }
+  }, [position, map]);
+
+  return position === null ? null : (
+    <Marker position={position}></Marker>
+  );
+}
 
 function CreateRequest() {
   const theme = useTheme();
@@ -45,9 +76,10 @@ function CreateRequest() {
     offeredAmount: '',
     responseDeadline: '',
     workDeadline: '',
+    location: null,
   });
 
-  const { title, description, typeOfHelp, offeredAmount, responseDeadline, workDeadline } =
+  const { title, description, typeOfHelp, offeredAmount, responseDeadline, workDeadline, location } =
     formData;
 
   const [error, setError] = useState('');
@@ -75,6 +107,23 @@ function CreateRequest() {
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     setError('');
+  };
+
+  const handleGetLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const newLoc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          setFormData({ ...formData, location: newLoc });
+        },
+        (err) => {
+          console.error(err);
+          setSnackbar({ open: true, message: 'Could not get location. Please click on the map.', severity: 'warning' });
+        }
+      );
+    } else {
+      setSnackbar({ open: true, message: 'Geolocation is not supported by your browser.', severity: 'warning' });
+    }
   };
 
   const handleEnhanceDescription = async () => {
@@ -128,9 +177,10 @@ function CreateRequest() {
       !typeOfHelp ||
       !offeredAmount ||
       !responseDeadline ||
-      !workDeadline
+      !workDeadline ||
+      !location
     ) {
-      setError('Please fill in all fields.');
+      setError('Please fill in all fields including the location.');
       return;
     }
 
@@ -147,7 +197,7 @@ function CreateRequest() {
     try {
       await axios.post(
         '/api/requests',
-        { title, description, typeOfHelp, offeredAmount, responseDeadline, workDeadline },
+        { title, description, typeOfHelp, offeredAmount, responseDeadline, workDeadline, location },
         { withCredentials: true }
       );
       setSnackbar({
@@ -424,6 +474,31 @@ function CreateRequest() {
                 />
                 <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
                   Expected completion date
+                </Typography>
+              </Grid>
+
+              {/* Location Picker */}
+              <Grid item xs={12}>
+                <Typography variant="subtitle2" fontWeight="600" gutterBottom>
+                  Location (Required for Help Map)
+                </Typography>
+                <Button variant="outlined" onClick={handleGetLocation} sx={{ mb: 2 }}>
+                  Use My Current Location
+                </Button>
+                <Box sx={{ height: 300, width: '100%', borderRadius: 2, overflow: 'hidden', border: '1px solid #ddd' }}>
+                  <MapContainer center={location || [51.505, -0.09]} zoom={13} scrollWheelZoom={true} style={{ height: '100%', width: '100%' }}>
+                    <TileLayer
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                    <LocationMarker 
+                      position={location} 
+                      setPosition={(pos) => setFormData({ ...formData, location: pos })} 
+                    />
+                  </MapContainer>
+                </Box>
+                <Typography variant="caption" color="text.secondary">
+                  Click on the map to place a pin, or use the button above to use your current location.
                 </Typography>
               </Grid>
 

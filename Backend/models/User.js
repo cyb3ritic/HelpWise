@@ -102,7 +102,24 @@ const UserSchema = new mongoose.Schema({
       default: Date.now,
     }
   },
+  skillsEmbedding: {
+    type: [Number],
+    default: [],
+  },
+  homeLocation: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      required: false,
+    },
+    coordinates: {
+      type: [Number],
+      required: false,
+    },
+  },
   // ===========================================
 }, { timestamps: true });
+
+UserSchema.index({ homeLocation: '2dsphere' });
 
 module.exports = mongoose.model('User', UserSchema);

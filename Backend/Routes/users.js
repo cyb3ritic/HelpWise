@@ -13,6 +13,7 @@ const Bid = require('../models/Bid');
 const auth = require('../middleware/auth');
 const nodemailer = require('nodemailer');
 const axios = require('axios');
+const { generateEmbedding } = require('../utils/embeddings');
 require('dotenv').config();
 
 // Middleware to parse cookies
@@ -79,6 +80,10 @@ router.post(
 
       const salt = await bcrypt.genSalt(10);
       user.password = await bcrypt.hash(password, salt);
+
+      const expertiseNames = validTypeOfHelp.map(t => t.name).join(', ');
+      const textToEmbed = `Name: ${firstName} ${lastName}. Expertise: ${expertiseNames}.`;
+      user.skillsEmbedding = await generateEmbedding(textToEmbed);
 
       await user.save();
 
@@ -211,6 +216,10 @@ router.put(
         user.password = await bcrypt.hash(password, salt);
       }
 
+      const expertiseNames = validTypeOfHelp.map(t => t.name).join(', ');
+      const textToEmbed = `Name: ${firstName} ${lastName}. Bio: ${user.bio || ''}. Expertise: ${expertiseNames}.`;
+      user.skillsEmbedding = await generateEmbedding(textToEmbed);
+
       await user.save();
 
       user = await User.findById(user.id).select('-password').populate('expertise', 'name description');
@@ -251,11 +260,18 @@ router.put(
         return res.status(400).json({ msg: 'Some expertise IDs are invalid' });
       }
 
-      const user = await User.findByIdAndUpdate(
-        req.user.id,
-        { expertise },
-        { new: true }
-      ).populate('expertise', 'name description');
+      let user = await User.findById(req.user.id);
+      if (!user) return res.status(404).json({ msg: 'User not found' });
+
+      user.expertise = expertise;
+
+      const expertiseNames = validExpertise.map(t => t.name).join(', ');
+      const textToEmbed = `Name: ${user.firstName} ${user.lastName}. Bio: ${user.bio || ''}. Expertise: ${expertiseNames}.`;
+      user.skillsEmbedding = await generateEmbedding(textToEmbed);
+
+      await user.save();
+
+      user = await User.findById(user.id).populate('expertise', 'name description');
 
       res.json(user);
     } catch (err) {
@@ -603,6 +619,10 @@ router.post('/enhance-profile', auth, async (req, res) => {
         user.website = enhancedData.twitter.website;
       }
     }
+
+    // Update skills embedding after profile enhancement
+    const textToEmbed = `Name: ${user.firstName} ${user.lastName}. Bio: ${user.bio || ''}. Top Skills: ${enhancedData.github ? enhancedData.github.topSkills.join(', ') : ''}`;
+    user.skillsEmbedding = await generateEmbedding(textToEmbed);
 
     await user.save();
 

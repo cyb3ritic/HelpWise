@@ -46,6 +46,17 @@ const RequestSchema = new mongoose.Schema(
       enum: ['Open', 'In Progress', 'Completed', 'Closed'],
       default: 'Open',
     },
+    location: {
+      type: {
+        type: String,
+        enum: ['Point'],
+        required: false,
+      },
+      coordinates: {
+        type: [Number],
+        required: false,
+      },
+    },
     
     // ⭐ MISSING FIELDS - ADD THESE:
     acceptedBidId: {
@@ -65,6 +76,10 @@ const RequestSchema = new mongoose.Schema(
     cancellationReason: {
       type: String,
     },
+    descriptionEmbedding: {
+      type: [Number],
+      default: [],
+    },
   },
   {
     timestamps: true, // ⭐ This automatically adds createdAt and updatedAt
@@ -74,5 +89,6 @@ const RequestSchema = new mongoose.Schema(
 // Index for better query performance
 RequestSchema.index({ requesterId: 1, status: 1 });
 RequestSchema.index({ status: 1, createdAt: -1 });
+RequestSchema.index({ location: '2dsphere' });
 
 module.exports = mongoose.model('Request', RequestSchema);
