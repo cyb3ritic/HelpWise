@@ -75,45 +75,16 @@ router.post(
         return res.status(400).json({ msg: 'Some expertise IDs are invalid' });
       }
 
-      user = new User({ firstName, lastName, email, password, expertise: expertiseIds, isVerified: false });
+      user = new User({ firstName, lastName, email, password, expertise: expertiseIds, isVerified: true });
 
       const salt = await bcrypt.genSalt(10);
       user.password = await bcrypt.hash(password, salt);
 
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      user.emailOTP = otp;
-      user.otpExpiresAt = Date.now() + 15 * 60 * 1000;
-
       await user.save();
 
-      try {
-        if (process.env.SMTP_HOST && process.env.SMTP_USER) {
-          const transporter = nodemailer.createTransport({
-            host: process.env.SMTP_HOST,
-            port: process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT) : 587,
-            secure: process.env.SMTP_SECURE === 'true',
-            auth: {
-              user: process.env.SMTP_USER,
-              pass: process.env.SMTP_PASS,
-            },
-          });
+      generateToken(user, res);
 
-          const mailOptions = {
-            from: process.env.FROM_EMAIL || process.env.SMTP_USER,
-            to: user.email,
-            subject: 'HelpWise - Email verification code',
-            text: `Your HelpWise verification code is ${otp}. It expires in 15 minutes.`,
-          };
-
-          await transporter.sendMail(mailOptions);
-        } else {
-          console.log(`OTP for ${user.email}: ${otp} (SMTP not configured)`);
-        }
-      } catch (emailErr) {
-        console.error('Error sending OTP email:', emailErr.message);
-      }
-
-      res.json({ msg: 'OTP sent to email for verification', email: user.email });
+      res.json({ msg: 'Registered successfully', email: user.email });
     } catch (err) {
       console.error('Register Error:', err.message);
       res.status(500).send('Server error');

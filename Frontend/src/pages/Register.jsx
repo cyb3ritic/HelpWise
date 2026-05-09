@@ -116,10 +116,11 @@ function Register() {
       // Send trimmed data to the backend
       await axios.post('/api/users/register', { firstName, lastName, email, password, expertise }, { withCredentials: true });
 
-      // Show OTP input to the user for email verification
-      setAwaitingVerification(true);
-      setResendTimer(60); // Start 60s countdown
-      setSnackbar({ open: true, message: 'OTP sent to your email. Please verify.', severity: 'success' });
+      // After registration, fetch current user and set auth
+      const res = await axios.get('/api/users/me', { withCredentials: true });
+      setUser(res.data);
+      setSnackbar({ open: true, message: 'Registered successfully!', severity: 'success' });
+      navigate('/');
     } catch (err) {
       console.error(err.response);
       setSnackbar({ open: true, message: err.response?.data?.msg || 'Registration failed.', severity: 'error' });
