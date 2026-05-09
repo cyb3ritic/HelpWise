@@ -45,6 +45,7 @@ import {
   Videocam as VideocamIcon,
   PhoneInTalk as PhoneInTalkIcon,
   Call as CallIcon,
+  LocationOn as LocationOnIcon,
 } from '@mui/icons-material';
 import { styled, alpha, keyframes } from '@mui/material/styles';
 import moment from 'moment';
@@ -509,6 +510,38 @@ function Conversation() {
     }
   };
 
+  const handleShareLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          const mapLink = `📍 My Location: https://www.google.com/maps?q=${lat},${lng}`;
+          
+          setSendingMessage(true);
+          try {
+            await axios.post(
+              `/api/conversations/${conversationId}/messages`,
+              { message: mapLink },
+              { withCredentials: true }
+            );
+          } catch (err) {
+            console.error('Error sending location:', err);
+            setError('Failed to share location. Please try again.');
+          } finally {
+            setSendingMessage(false);
+          }
+        },
+        (err) => {
+          console.error(err);
+          setError('Could not get location. Please allow location permissions.');
+        }
+      );
+    } else {
+      setError('Geolocation is not supported by your browser.');
+    }
+  };
+
   const handleClearChat = async () => {
     try {
       await axios.delete(`/api/conversations/${conversationId}/messages`, {
@@ -872,6 +905,26 @@ function Conversation() {
                     )
                   }
                 />
+
+                <Tooltip title="Share Location" arrow>
+                  <span>
+                    <IconButton
+                      onClick={handleShareLocation}
+                      disabled={sendingMessage}
+                      sx={{
+                        color: theme.palette.primary.main,
+                        bgcolor: alpha(theme.palette.primary.main, 0.1),
+                        transition: 'all 0.3s ease',
+                        '&:hover': {
+                          transform: 'scale(1.1)',
+                          bgcolor: alpha(theme.palette.primary.main, 0.2),
+                        }
+                      }}
+                    >
+                      <LocationOnIcon />
+                    </IconButton>
+                  </span>
+                </Tooltip>
 
                 <Tooltip title={newMessage.trim() ? 'Send message' : 'Type a message'} arrow>
                   <span>

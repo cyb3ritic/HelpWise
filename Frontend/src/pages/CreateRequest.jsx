@@ -177,10 +177,9 @@ function CreateRequest() {
       !typeOfHelp ||
       !offeredAmount ||
       !responseDeadline ||
-      !workDeadline ||
-      !location
+      !workDeadline
     ) {
-      setError('Please fill in all fields including the location.');
+      setError('Please fill in all required fields.');
       return;
     }
 
@@ -480,11 +479,18 @@ function CreateRequest() {
               {/* Location Picker */}
               <Grid item xs={12}>
                 <Typography variant="subtitle2" fontWeight="600" gutterBottom>
-                  Location (Required for Help Map)
+                  Location (Optional)
                 </Typography>
-                <Button variant="outlined" onClick={handleGetLocation} sx={{ mb: 2 }}>
-                  Use My Current Location
-                </Button>
+                <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+                  <Button variant="outlined" onClick={handleGetLocation}>
+                    Use My Current Location
+                  </Button>
+                  {location && (
+                    <Button variant="outlined" color="error" onClick={() => setFormData({ ...formData, location: null })}>
+                      Clear Location
+                    </Button>
+                  )}
+                </Stack>
                 <Box sx={{ height: 300, width: '100%', borderRadius: 2, overflow: 'hidden', border: '1px solid #ddd' }}>
                   <MapContainer center={location || [51.505, -0.09]} zoom={13} scrollWheelZoom={true} style={{ height: '100%', width: '100%' }}>
                     <TileLayer
