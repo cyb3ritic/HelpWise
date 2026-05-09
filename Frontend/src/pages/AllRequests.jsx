@@ -128,10 +128,24 @@ function AllRequests() {
   };
 
   const filteredRequests = requests.filter((req) => {
-    const matchesFilter =
-      filter === 'all' ||
-      (filter === 'open' && req.status === 'Open') ||
-      (filter === 'closed' && req.status !== 'Open');
+    let matchesFilter = false;
+
+    if (filter === 'all') {
+      matchesFilter = true;
+    } else if (filter === 'open') {
+      matchesFilter = req.status === 'Open';
+    } else if (filter === 'closed') {
+      matchesFilter = req.status !== 'Open';
+    } else if (filter === 'forme') {
+      matchesFilter = false;
+      if (user && user.expertise && req.typeOfHelp) {
+        const reqTypeId = req.typeOfHelp._id || req.typeOfHelp;
+        matchesFilter = user.expertise.some(exp => {
+          const expId = exp._id || exp;
+          return expId.toString() === reqTypeId.toString();
+        });
+      }
+    }
 
     const matchesSearch =
       searchTerm === '' ||
@@ -239,6 +253,14 @@ function AllRequests() {
                   onClick={() => setFilter('closed')}
                   sx={{ fontWeight: filter === 'closed' ? 'bold' : 'normal' }}
                 />
+                {user && (
+                  <Chip
+                    label="Requests for me"
+                    color={filter === 'forme' ? 'secondary' : 'default'}
+                    onClick={() => setFilter('forme')}
+                    sx={{ fontWeight: filter === 'forme' ? 'bold' : 'normal' }}
+                  />
+                )}
               </Stack>
             </Grid>
           </Grid>

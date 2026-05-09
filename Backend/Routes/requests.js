@@ -104,19 +104,27 @@ router.post(
         }
       } catch (searchError) {
         console.error("Vector Search failed (Index might be missing or wrongly configured):", searchError.message);
-        // Fallback: Just find latest 5 verified users
-        matchedHelpers = await User.find({ isVerified: true }).limit(5);
+        // Fallback: Find users whose expertise includes the request's typeOfHelp
+        matchedHelpers = await User.find({ 
+          isVerified: true, 
+          expertise: typeOfHelp 
+        }).limit(5);
       }
 
       // Emit targeted notifications to matched helpers
       if (matchedHelpers.length > 0 && req.io) {
         console.log(`[Smart Match] Found ${matchedHelpers.length} helpers for request ${request._id}`);
-        matchedHelpers.forEach(helper => {
+        const Notification = require('../models/Notification');
+        for (const helper of matchedHelpers) {
+          const notif = new Notification({
+            user: helper._id,
+            type: 'Request Created',
+            message: `Emergency Match: ${request.title}`
+          });
+          await notif.save();
           req.io.to(helper._id.toString()).emit('emergencyRequestMatch', request);
-        });
-      } else if (req.io) {
-        // Fallback to global emit if no one matched
-        req.io.emit('newRequest', request);
+          req.io.to(helper._id.toString()).emit('newNotification', notif);
+        }
       }
 
       res.json(request);
