@@ -134,12 +134,40 @@ async function handleCreateRequest(userId, message, sessionState, chatDoc) {
 
   switch (step) {
     case 'INIT':
-      responseText = "Sure, I can help you post a request. First, where is the help needed? (City/Location)";
+      responseText = "Sure, I can help you post a request. First, would you like to share your current location for better helper matching, or skip?";
+      metadata = {
+        type: 'REQUEST_LOCATION',
+        quickReplies: [
+          { label: '📍 Share My Location', value: 'SHARE_LOCATION' },
+          { label: 'Skip Location', value: 'SKIP_LOCATION' }
+        ]
+      };
       nextStep = 'ASK_LOCATION';
       break;
 
     case 'ASK_LOCATION':
-      slots.location = message;
+      if (message === 'SKIP_LOCATION') {
+        slots.location = undefined;
+        slots.locationName = 'Skipped';
+      } else {
+        try {
+          const locObj = JSON.parse(message);
+          if (locObj.lat && locObj.lng) {
+            slots.location = {
+              type: 'Point',
+              coordinates: [locObj.lng, locObj.lat]
+            };
+            slots.locationName = '📍 Shared Coordinates';
+          } else {
+            slots.location = undefined;
+            slots.locationName = 'Skipped';
+          }
+        } catch (e) {
+          // If they manually typed a string instead of using the button
+          slots.location = undefined;
+          slots.locationName = message;
+        }
+      }
       responseText = "Got it. What kind of help do you need? (e.g., Plumbing, Moving, Cleaning)";
       nextStep = 'ASK_TYPE';
       break;
@@ -204,7 +232,7 @@ async function handleCreateRequest(userId, message, sessionState, chatDoc) {
 
     case 'ASK_TIME':
       slots.time = message;
-      responseText = `Great! Here's a summary:\n\n📍 Location: ${slots.location}\n🔧 Type: ${slots.type}\n📝 Description: ${slots.description}\n💰 Budget: $${slots.amount}\n⏰ Time: ${slots.time}\n\nShall I post this request?`;
+      responseText = `Great! Here's a summary:\n\n📍 Location: ${slots.locationName}\n🔧 Type: ${slots.type}\n📝 Description: ${slots.description}\n💰 Budget: $${slots.amount}\n⏰ Time: ${slots.time}\n\nShall I post this request?`;
       metadata = {
         type: 'CONFIRMATION',
         data: slots,
@@ -238,17 +266,22 @@ async function handleCreateRequest(userId, message, sessionState, chatDoc) {
           const deadline = new Date();
           deadline.setDate(deadline.getDate() + 7);
 
-          const newRequest = new Request({
+          const requestData = {
             requesterId: userId,
-            title: `${slots.type} in ${slots.location}`,
+            title: `${slots.type} Request`,
             description: slots.description,
             typeOfHelp: typeOfHelpDoc._id,
-            location: slots.location,
             offeredAmount: slots.amount || 50,
             responseDeadline: deadline,
             workDeadline: deadline,
             status: 'Open'
-          });
+          };
+          
+          if (slots.location) {
+             requestData.location = slots.location;
+          }
+
+          const newRequest = new Request(requestData);
           await newRequest.save();
           responseText = "✅ Your request has been posted successfully! Helpers will be notified.";
           metadata = { type: 'REQUEST_CREATED', requestId: newRequest._id };

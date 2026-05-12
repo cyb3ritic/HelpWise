@@ -285,7 +285,9 @@ const RequestCard = ({ request, onClick, type = 'request' }) => (
         {request.title}
       </Typography>
       <Typography variant="body2" color="text.secondary" noWrap>
-        {request.location} • {request.category}
+        {typeof request.location === 'object' && request.location !== null 
+          ? '📍 Shared Location' 
+          : (request.location || 'Location Not Specified')} • {request.category}
       </Typography>
       <Chip
         label={request.status}
@@ -621,6 +623,43 @@ function Chatbot() {
           </Box>
         );
 
+      case 'REQUEST_LOCATION':
+        return (
+          <Box sx={{ mt: 1, display: 'flex', gap: 1 }}>
+            <Button
+              variant="contained"
+              color="primary"
+              size="small"
+              onClick={() => {
+                if (navigator.geolocation) {
+                  navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                      const payload = JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+                      handleSendMessage(payload);
+                    },
+                    (err) => {
+                      console.error(err);
+                      handleSendMessage('SKIP_LOCATION');
+                    }
+                  );
+                } else {
+                  handleSendMessage('SKIP_LOCATION');
+                }
+              }}
+            >
+              📍 Share My Location
+            </Button>
+            <Button
+              variant="outlined"
+              color="error"
+              size="small"
+              onClick={() => handleSendMessage('SKIP_LOCATION')}
+            >
+              Skip
+            </Button>
+          </Box>
+        );
+
       case 'CONFIRMATION':
         return (
           <Box sx={{ mt: 1 }}>
@@ -828,7 +867,7 @@ function Chatbot() {
                     <Box sx={{ maxWidth: '75%' }}>
                       <MessageBubble elevation={0} sender={msg.sender}>
                         <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
-                          {msg.text}
+                          {msg.text === 'SKIP_LOCATION' ? 'Skipped Location' : (msg.text.includes('{"lat":') ? '📍 Shared Location' : msg.text)}
                         </Typography>
                         {/* Render Metadata (Cards, Quick Replies) */}
                         {msg.sender === 'bot' && renderMetadata(msg.metadata)}
